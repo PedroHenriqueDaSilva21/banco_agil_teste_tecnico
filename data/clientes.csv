@@ -1,1 +1,4 @@
 cpf,nome,data_nascimento,score,limite_atual
+12345678901,Ana Silva,1990-01-15,600,1500
+98765432100,Bruno Santos,1985-11-20,250,500
+11122233344,Carlos Oliveira,1995-07-30,850,5000
