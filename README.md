@@ -3,6 +3,8 @@
 ## Índice
 - [Objetivo](#objetivo)
 - [Stack](#stack)
+	- [Tecnologias Principais](#tecnologias-principais)
+	- [Dependências e Versões](#dependências-e-versões)
 - [Decisão arquitetural](#decisão-arquitetural)
 	- [Fluxo base da arquitetura](#fluxo-base-da-arquitetura)
 
@@ -11,14 +13,32 @@ Criar um agente de de IA para operações bancárias, ele deverá operar com ope
 
 ## Stack
 
+### Tecnologias Principais
+
 | Camada | Tecnologia |
 | --- | --- |
 | Linguagem | Python 3.12.3 |
 | LLM / Infraestrutura | Amazon Bedrock e Docker |
 | Modelo de embeddings utilizado | Titan Embeddings v2 |
 | Modelo de raciocínio utilizado | AWS Nova Micro |
-| Orquestração de agentes | LangChain |
-| Fluxos e controle de estado | LangGraph |
+
+### Dependências e Versões
+
+As principais bibliotecas e frameworks de apoio do projeto são controlados e pinados nas seguintes versões:
+
+| Biblioteca | Versão | Descrição |
+| --- | --- | --- |
+| **mcp** | `1.28.1` | Protocolo para comunicação externa de recursos e ferramentas |
+| **langchain** | `1.3.11` | Framework principal de orquestração do LLM |
+| **langgraph** | `1.2.7` | Orquestração de grafos de estados e fluxos de conversa (handovers) |
+| **boto3** | `1.43.40` | SDK oficial da AWS para conexão e comunicação com o Bedrock |
+| **pydantic** | `2.13.4` | Validação de dados de entrada e conversão de schemas de dados |
+| **pydantic-settings** | `2.14.2` | Carregamento automático e validação de configurações via variáveis de ambiente |
+| **streamlit** | `1.58.0` | Interface web interativa simples para simulação de atendimentos |
+| **pandas** | `3.0.3` | Manipulação e leitura estruturada de arquivos CSV (banco de dados) |
+| **pytest** | `9.1.1` | Framework de testes unitários e de integração |
+| **python-dotenv** | `1.2.2` | Carregamento de variáveis de ambiente do arquivo `.env` |
+
 
 
 ## Decisão arquitetural
