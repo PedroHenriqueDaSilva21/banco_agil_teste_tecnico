@@ -50,10 +50,10 @@ Usuário
   -> Agent de Triagem
 	  -> Tool de Autenticação
 		  -> Service de Validação
-			  -> Repository CSV
+			  -> CustomerRepository (CSV)
 	  -> Tool de Crédito
-		  -> Service de Score
-			  -> Repository CSV
+		  -> Service de Crédito/Score
+			  -> CustomerRepository / ScoreLimitRepository (CSV)
 ```
 
 O sistema vai seguir a estrutura MCP para a comunicação dos agentes de IA com as operações a serem realizadas e gravadas nos arquivos CSV. Esse padrão vai ser seguido para desacoplar a lógica dos agentes de IA com as operações de fontes de dados, fazendo com que haja um fluxo mais previsível de repasse da informação entre o services para o agente, facilitando a manutenção e o rastreamento dos logs.
@@ -76,7 +76,10 @@ src/
 │   ├── routing.py
 │   └── score.py
 ├── repositories/
-│   └── csv_repository.py
+│   ├── __init__.py
+│   ├── credit_request_repository.py
+│   ├── customer_repository.py
+│   └── score_limit_repository.py
 ├── models/
 │   └── schemas.py
 └── config/
@@ -90,7 +93,7 @@ config: guardará as configurações centrais do projeto, como caminhos dos arqu
 
 models: vai funcionar como a camada de contratos da aplicação, definindo os dados e o tipo de cada informação a ser inserida, separada por domínio (score, cliente, etc).
 
-repositories: estabelece a conexão com o CSV diretamente, garantindo uma camada desacoplada da fonte de dados e facilitando a troca para um banco de dados como SQLite, MySQL, Postgree ou outros.
+repositories: estabelece a conexão com a persistência de dados em arquivos CSV de forma desacoplada por domínio e facilitando uma migração futura para bancos de dados como MySQL, SQLite, PostgreSQL etc.
 
 services: aqui vai ficar a regra de negócio, os cálculos, as validações e também as operações mais gerais, separadas por domínio.
 
