@@ -1,5 +1,11 @@
 # Banco Ágil IA
 
+## Índice
+- [Objetivo](#objetivo)
+- [Stack](#stack)
+- [Decisão arquitetural](#decisão-arquitetural)
+	- [Fluxo base da arquitetura](#fluxo-base-da-arquitetura)
+
 ### Objetivo
 Criar um agente de de IA para operações bancárias, ele deverá operar com operações de triagem, crédito, entrevistá para atualizar score de crédito, e um agente de câmbio.
 
