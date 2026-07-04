@@ -1,1 +1,3 @@
 cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido
+12345678901,2026-07-04T20:22:22.965526,1500.0,2500.0,aprovado
+12345678901,2026-07-04T20:22:22.969436,2500.0,10000.0,rejeitado
