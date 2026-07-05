@@ -66,7 +66,7 @@ Todos os agentes definidos em `requisitos.md` estão implementados.
 - **Supervisor LangGraph** — handover implícito entre agentes via `target_agent` no state
 - **State compartilhado** (`AgentState`) — autenticação, dados do cliente, intenção, status de pedidos
 - **Logging estruturado** com mascaramento de PII (CPF, data) em `data/logs/flow.log`
-- **47 testes unitários** cobrindo services, roteamento e side effects dos grafos
+- **91 testes unitários e de integração** cobrindo services, sanitizer, roteamento e fluxos E2E mockados
 
 ---
 
@@ -206,6 +206,7 @@ banco_agil/
 │   │   └── session.py
 │   └── utils/                            # Sanitizer, logging, prompt loader
 ├── tests/
+│   ├── conftest.py                       # Fixtures e helpers para testes E2E
 │   ├── test_auth_service.py
 │   ├── test_credit_service.py
 │   ├── test_credit_state.py
@@ -213,7 +214,9 @@ banco_agil/
 │   ├── test_interview_state.py
 │   ├── test_exchange_service.py
 │   ├── test_exchange_state.py
+│   ├── test_graph_integration.py
 │   ├── test_routing_service.py
+│   ├── test_sanitizer.py
 │   ├── test_session_service.py
 │   └── test_triage_state.py
 ├── ui/
@@ -303,10 +306,12 @@ pytest tests/ -v
 | `test_interview_state.py` | Side effects do grafo de entrevista |
 | `test_exchange_service.py` | Consulta de cotação e normalização de moedas |
 | `test_exchange_state.py` | Side effects do grafo de câmbio |
+| `test_sanitizer.py` | Proteção contra prompt injection |
+| `test_graph_integration.py` | Fluxos E2E com LLM e MCP mockados |
 
 ---
 
 ## Próximos passos
 
-- [ ] Cobertura de testes para sanitizer (prompt injection)
-- [ ] Testes end-to-end com LLM mockado para fluxos completos
+- [ ] Testes end-to-end com Bedrock real (ambiente de staging)
+- [ ] CI/CD com execução automática dos testes
