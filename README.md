@@ -23,10 +23,11 @@ O projeto implementa um fluxo de atendimento bancário conversacional com:
 - **Autenticação** de clientes via CPF e data de nascimento contra `data/clientes.csv`
 - **Triagem inteligente** com classificação de intenção e roteamento implícito
 - **Operações de crédito** — consulta de limite e solicitação de aumento com validação de score
+- **Consulta de câmbio** — cotação de moedas em tempo real via API externa
 - **Interface Streamlit** para simulação do atendimento completo
 - **Servidor MCP** (Model Context Protocol) desacoplando agentes de IA das operações de dados
 
-Agentes ainda não implementados: **Câmbio** (stub preparado no supervisor).
+Todos os agentes definidos em `requisitos.md` estão implementados.
 
 ---
 
@@ -55,11 +56,17 @@ Agentes ainda não implementados: **Câmbio** (stub preparado no supervisor).
 - Redirecionamento de volta ao crédito para nova análise (`redirect_to_credit`)
 - Loop completo: crédito → entrevista → crédito
 
+### Agente de Câmbio
+- Consulta de cotação em tempo real via [AwesomeAPI](https://docs.awesomeapi.com.br/) (`get_currency_quote`)
+- Suporte a USD, EUR, GBP, ARS, CAD, JPY e CHF
+- Apresentação de compra, venda, variação do dia e horário da cotação
+- Encerramento amigável do atendimento via `end_conversation`
+
 ### Infraestrutura transversal
 - **Supervisor LangGraph** — handover implícito entre agentes via `target_agent` no state
 - **State compartilhado** (`AgentState`) — autenticação, dados do cliente, intenção, status de pedidos
 - **Logging estruturado** com mascaramento de PII (CPF, data) em `data/logs/flow.log`
-- **37 testes unitários** cobrindo services, roteamento e side effects dos grafos
+- **47 testes unitários** cobrindo services, roteamento e side effects dos grafos
 
 ---
 
@@ -107,7 +114,8 @@ Usuário (Streamlit)
         │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
         ├─► Entrevista de Crédito
         │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
-        └─► Câmbio (stub)
+        └─► Agente de Câmbio
+              └─► Tools LangChain ──► MCP Server (stdio) ──► ExchangeService ──► AwesomeAPI
 ```
 
 ### Camadas e responsabilidades
@@ -134,6 +142,7 @@ Usuário (Streamlit)
 | `redirect_to_interview` | — | Sinaliza redirecionamento para entrevista |
 | `submit_credit_interview` | `InterviewService` | Registra entrevista e recalcula score |
 | `redirect_to_credit` | — | Sinaliza retorno ao agente de crédito |
+| `get_currency_quote` | `ExchangeService` | Consulta cotação via API externa |
 
 ### Fluxo de atendimento
 
@@ -145,7 +154,8 @@ Usuário (Streamlit)
 5. Se rejeitado: oferta de entrevista → redirect_to_interview
 6. Entrevista: coleta dados → submit_credit_interview → redirect_to_credit
 7. Crédito: nova análise de aumento com score atualizado
-8. Encerramento: end_conversation a qualquer momento
+8. Câmbio: consulta de cotação via API → encerramento
+9. Encerramento: end_conversation a qualquer momento
 ```
 
 ---
@@ -173,7 +183,8 @@ banco_agil/
 │   │   ├── supervisor.py                 # Roteamento entre agentes
 │   │   ├── triage.py                     # Agente de triagem
 │   │   ├── credit.py                     # Agente de crédito
-│   │   └── interview.py                  # Agente de entrevista de crédito
+│   │   ├── interview.py                  # Agente de entrevista de crédito
+│   │   └── exchange.py                   # Agente de câmbio
 │   ├── config/
 │   │   └── settings.py                   # Variáveis de ambiente (Bedrock)
 │   ├── models/                           # Schemas Pydantic
@@ -182,6 +193,7 @@ banco_agil/
 │   │   ├── auth_service.py
 │   │   ├── credit_service.py
 │   │   ├── interview_service.py
+│   │   ├── exchange_service.py
 │   │   ├── routing.py
 │   │   └── session_service.py
 │   ├── tools/                            # Wrappers LangChain → MCP
@@ -189,6 +201,7 @@ banco_agil/
 │   │   ├── auth.py
 │   │   ├── credit.py
 │   │   ├── interview.py
+│   │   ├── exchange.py
 │   │   ├── routing.py
 │   │   └── session.py
 │   └── utils/                            # Sanitizer, logging, prompt loader
@@ -198,6 +211,8 @@ banco_agil/
 │   ├── test_credit_state.py
 │   ├── test_interview_service.py
 │   ├── test_interview_state.py
+│   ├── test_exchange_service.py
+│   ├── test_exchange_state.py
 │   ├── test_routing_service.py
 │   ├── test_session_service.py
 │   └── test_triage_state.py
@@ -266,7 +281,7 @@ streamlit run ui/streamlit_app.py
 1. Informe CPF e data de nascimento
 2. Diga *"qual meu limite?"* → consulta de crédito
 3. Diga *"quero aumentar para 3000"* → solicitação (aprovada para Ana Silva)
-4. Diga *"quero aumentar para 5000"* → rejeitada → oferta de entrevista
+4. Diga *"qual a cotação do dólar?"* → consulta de câmbio
 
 ---
 
@@ -286,11 +301,12 @@ pytest tests/ -v
 | `test_credit_state.py` | Side effects do grafo de crédito |
 | `test_interview_service.py` | Cálculo de score e persistência da entrevista |
 | `test_interview_state.py` | Side effects do grafo de entrevista |
+| `test_exchange_service.py` | Consulta de cotação e normalização de moedas |
+| `test_exchange_state.py` | Side effects do grafo de câmbio |
 
 ---
 
 ## Próximos passos
 
-- [ ] Agente de Câmbio (cotação via API externa)
-- [ ] Substituir stub do supervisor pelo agente de câmbio
 - [ ] Cobertura de testes para sanitizer (prompt injection)
+- [ ] Testes end-to-end com LLM mockado para fluxos completos
