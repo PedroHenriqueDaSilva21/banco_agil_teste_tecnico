@@ -5,22 +5,19 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
 from src.agents.credit import create_credit_agent
+from src.agents.exchange import create_exchange_agent
 from src.agents.interview import create_interview_agent
 from src.agents.state import AgentState, initial_agent_state
 from src.agents.triage import create_triage_agent
 
 logger = logging.getLogger(__name__)
 
-_EXCHANGE_STUB_MESSAGE = (
-    "Perfeito! Vou verificar a cotação solicitada para você. "
-    "O serviço de câmbio estará disponível em instantes neste mesmo canal."
-)
-
 
 def create_supervisor():
     triage = create_triage_agent()
     credit = create_credit_agent()
     interview = create_interview_agent()
+    exchange = create_exchange_agent()
 
     def supervisor_node(state: AgentState, config: RunnableConfig) -> dict:
         tid = (config or {}).get("configurable", {}).get("thread_id", "-")
@@ -37,8 +34,8 @@ def create_supervisor():
             logger.info("Supervisor: roteando para entrevista de crédito.", extra={"thread_id": tid})
             return interview.invoke(state, config)
         if target == "exchange":
-            logger.info("Supervisor: roteando para agente de câmbio (stub).", extra={"thread_id": tid})
-            return {"messages": [AIMessage(content=_EXCHANGE_STUB_MESSAGE)]}
+            logger.info("Supervisor: roteando para agente de câmbio.", extra={"thread_id": tid})
+            return exchange.invoke(state, config)
 
         logger.info("Supervisor: delegando para agente de triagem.", extra={"thread_id": tid})
         return triage.invoke(state, config)
