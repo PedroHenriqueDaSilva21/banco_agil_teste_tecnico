@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main, master, "2-agente-de-triagem"]
+    branches: [main,Review]
   pull_request:
-    branches: [main, master]
+    branches: [main,Review]
 
 env:
-  AWS_ACCESS_KEY_ID: ci-test-key
-  AWS_SECRET_ACCESS_KEY: ci-test-secret
-  AWS_DEFAULT_REGION: us-east-1
-  BEDROCK_LLM_MODEL: amazon.nova-micro-v1:0
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+  BEDROCK_LLM_MODEL: ${{ secrets.BEDROCK_LLM_MODEL }}
 
 jobs:
   test:
@@ -24,7 +24,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short
