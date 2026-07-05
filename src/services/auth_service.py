@@ -10,14 +10,12 @@ class AuthService:
 
     def _normalize_date(self, date_str: str) -> Optional[str]:
         date_str = date_str.strip()
-        # Formatos mais comuns de data
         for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d"):
             try:
                 return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
             except ValueError:
                 continue
 
-        # Tenta extrair apenas números se possuir 8 caracteres (DDMMYYYY ou YYYYMMDD)
         digits = "".join(char for char in date_str if char.isdigit())
         if len(digits) == 8:
             for fmt in ("%d%m%Y", "%Y%m%d"):
