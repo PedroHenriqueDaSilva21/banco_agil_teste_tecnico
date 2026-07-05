@@ -16,6 +16,8 @@ class AgentState(TypedDict):
     target_agent: Optional[str]
     intent: Optional[str]
     conversation_ended: bool
+    last_request_status: Optional[str]
+    interview_offered: bool
 
 
 def initial_agent_state(messages: list | None = None) -> AgentState:
@@ -30,6 +32,8 @@ def initial_agent_state(messages: list | None = None) -> AgentState:
         "target_agent": None,
         "intent": None,
         "conversation_ended": False,
+        "last_request_status": None,
+        "interview_offered": False,
     }
 
 

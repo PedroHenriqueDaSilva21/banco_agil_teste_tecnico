@@ -130,6 +130,8 @@ st.sidebar.caption("Estado da sessão")
 st.sidebar.write(f"Autenticado: {'Sim' if st.session_state.agent_state.get('authenticated') else 'Não'}")
 st.sidebar.write(f"Tentativas de auth: {st.session_state.agent_state.get('auth_attempts', 0)}")
 st.sidebar.write(f"Agente ativo: {st.session_state.agent_state.get('target_agent') or 'triagem'}")
+if st.session_state.agent_state.get("last_request_status"):
+    st.sidebar.write(f"Último pedido: {st.session_state.agent_state['last_request_status']}")
 
 if st.sidebar.button("🔄 Reiniciar Conversa"):
     st.session_state.agent_state = initial_agent_state()

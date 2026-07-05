@@ -4,23 +4,25 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
+from src.agents.credit import create_credit_agent
 from src.agents.state import AgentState, initial_agent_state
 from src.agents.triage import create_triage_agent
 
 logger = logging.getLogger(__name__)
 
-_CREDIT_STUB_MESSAGE = (
-    "Entendido! Vou ajudá-lo com sua solicitação de crédito. "
-    "Em breve você poderá consultar seu limite e solicitar aumentos por aqui."
-)
 _EXCHANGE_STUB_MESSAGE = (
     "Perfeito! Vou verificar a cotação solicitada para você. "
     "O serviço de câmbio estará disponível em instantes neste mesmo canal."
+)
+_INTERVIEW_STUB_MESSAGE = (
+    "Ótimo! Vamos iniciar sua entrevista de crédito para reavaliar seu score. "
+    "Em breve este serviço estará disponível neste mesmo canal."
 )
 
 
 def create_supervisor():
     triage = create_triage_agent()
+    credit = create_credit_agent()
 
     def supervisor_node(state: AgentState, config: RunnableConfig) -> dict:
         tid = (config or {}).get("configurable", {}).get("thread_id", "-")
@@ -31,8 +33,11 @@ def create_supervisor():
 
         target = state.get("target_agent")
         if target == "credit":
-            logger.info("Supervisor: roteando para agente de crédito (stub).", extra={"thread_id": tid})
-            return {"messages": [AIMessage(content=_CREDIT_STUB_MESSAGE)]}
+            logger.info("Supervisor: roteando para agente de crédito.", extra={"thread_id": tid})
+            return credit.invoke(state, config)
+        if target == "interview":
+            logger.info("Supervisor: roteando para entrevista de crédito (stub).", extra={"thread_id": tid})
+            return {"messages": [AIMessage(content=_INTERVIEW_STUB_MESSAGE)]}
         if target == "exchange":
             logger.info("Supervisor: roteando para agente de câmbio (stub).", extra={"thread_id": tid})
             return {"messages": [AIMessage(content=_EXCHANGE_STUB_MESSAGE)]}

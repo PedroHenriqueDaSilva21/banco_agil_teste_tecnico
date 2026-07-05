@@ -1,0 +1,1 @@
+Registra uma solicitação formal de aumento de limite de crédito. Verifica o score do cliente contra a tabela score_limite e retorna status aprovado ou rejeitado.
