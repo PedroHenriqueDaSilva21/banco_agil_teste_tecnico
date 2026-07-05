@@ -1,4 +1,3 @@
-
 import asyncio
 import json
 import logging
@@ -6,31 +5,30 @@ import os
 import sys
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from src.utils import mask_cpf, mask_date
+from src.utils import mask_cpf, mask_date, load_prompt
 
 logger = logging.getLogger(__name__)
 
 
-@tool
+class AuthenticateCustomerSchema(BaseModel):
+    cpf: str = Field(
+        description="O CPF do cliente (apenas números ou formatado com pontos e traço)."
+    )
+    birth_date: str = Field(
+        description="A data de nascimento do cliente (aceita DD/MM/YYYY ou YYYY-MM-DD)."
+    )
+
+
+@tool(
+    description=load_prompt("auth_tool_description.txt"),
+    args_schema=AuthenticateCustomerSchema,
+)
 def authenticate_customer(cpf: str, birth_date: str) -> dict:
-    """
-    Autentica o cliente no sistema do Banco Ágil usando CPF e data de nascimento.
-    Deve ser chamada assim que o cliente fornecer o CPF e a data de nascimento.
-
-    Args:
-        cpf: O CPF do cliente (apenas números ou formatado com pontos e traço).
-        birth_date: A data de nascimento do cliente (aceita DD/MM/YYYY ou YYYY-MM-DD).
-
-    Returns:
-        Um dicionário com:
-        - success (bool): Se a autenticação foi bem-sucedida.
-        - message (str): Mensagem explicativa do resultado.
-        - customer_name (str, opcional): Nome do cliente autenticado.
-    """
     logger.info(
         "authenticate_customer chamada — cpf=%s nascimento=%s",
         mask_cpf(cpf),
