@@ -8,14 +8,14 @@ from langgraph.prebuilt import ToolNode
 
 from src.agents.state import AgentState, parse_tool_payload
 from src.config.settings import settings
-from src.tools.credit import get_credit_limit, redirect_to_interview, request_credit_increase
+from src.tools.interview import redirect_to_credit, submit_credit_interview
 from src.tools.session import end_conversation
 from src.utils import load_prompt, sanitize_input
 
 logger = logging.getLogger(__name__)
 
-_tools = [get_credit_limit, request_credit_increase, redirect_to_interview, end_conversation]
-_CREDIT_SYSTEM_PROMPT = load_prompt("credit.md")
+_tools = [submit_credit_interview, redirect_to_credit, end_conversation]
+_INTERVIEW_SYSTEM_PROMPT = load_prompt("interview.md")
 _BLOCKED_MESSAGE = (
     "Não foi possível processar sua mensagem. "
     "Por favor, utilize apenas texto simples para interagir com o atendimento."
@@ -28,18 +28,10 @@ def _build_system_prompt(state: AgentState) -> str:
         "## Dados do cliente autenticado",
         f"- Nome: {state.get('customer_name') or 'N/A'}",
         f"- CPF: {state.get('customer_cpf') or 'N/A'}",
+        f"- Score atual: {state.get('customer_score') or 'N/A'}",
         f"- Limite atual: {state.get('customer_limit') or 'N/A'}",
-        f"- Score: {state.get('customer_score') or 'N/A'}",
-        f"- Intenção identificada: {state.get('intent') or 'N/A'}",
     ]
-    if state.get("last_request_status") == "rejeitado":
-        context_lines.append("- Última solicitação de aumento: **rejeitada** — ofereça entrevista de crédito.")
-    if state.get("returned_from_interview"):
-        context_lines.append(
-            "- Cliente retornou da entrevista de crédito com score atualizado — "
-            "ofereça nova análise de aumento de limite."
-        )
-    return _CREDIT_SYSTEM_PROMPT + "\n".join(context_lines)
+    return _INTERVIEW_SYSTEM_PROMPT + "\n".join(context_lines)
 
 
 def _route_after_agent(state: AgentState) -> str:
@@ -58,44 +50,38 @@ def _apply_tool_side_effects(
     tool_messages: list[ToolMessage],
 ) -> dict:
     conversation_ended = state.get("conversation_ended", False)
-    customer_limit = state.get("customer_limit")
+    customer_score = state.get("customer_score")
     target_agent = state.get("target_agent")
+    returned_from_interview = state.get("returned_from_interview", False)
     last_request_status = state.get("last_request_status")
     interview_offered = state.get("interview_offered", False)
-    returned_from_interview = state.get("returned_from_interview", False)
 
     for msg in tool_messages:
         payload = parse_tool_payload(msg.content)
 
-        if msg.name == "get_credit_limit" and payload.get("success"):
-            customer_limit = payload.get("current_limit", customer_limit)
-            returned_from_interview = False
+        if msg.name == "submit_credit_interview" and payload.get("success"):
+            customer_score = payload.get("new_score", customer_score)
 
-        elif msg.name == "request_credit_increase" and payload.get("success"):
-            last_request_status = payload.get("status")
-            returned_from_interview = False
-            if last_request_status == "aprovado":
-                customer_limit = payload.get("new_limit", customer_limit)
-            elif last_request_status == "rejeitado":
-                interview_offered = True
-
-        elif msg.name == "redirect_to_interview" and payload.get("redirected"):
-            target_agent = payload.get("target_agent", "interview")
+        elif msg.name == "redirect_to_credit" and payload.get("redirected"):
+            target_agent = payload.get("target_agent", "credit")
+            returned_from_interview = True
+            last_request_status = None
+            interview_offered = False
 
         elif msg.name == "end_conversation" and payload.get("ended"):
             conversation_ended = True
 
     return {
-        "customer_limit": customer_limit,
+        "customer_score": customer_score,
         "target_agent": target_agent,
+        "returned_from_interview": returned_from_interview,
         "last_request_status": last_request_status,
         "interview_offered": interview_offered,
-        "returned_from_interview": returned_from_interview,
         "conversation_ended": conversation_ended,
     }
 
 
-def create_credit_agent():
+def create_interview_agent():
     llm = ChatBedrockConverse(
         model_id=settings.bedrock_llm_model,
         region_name=settings.aws_default_region,
@@ -125,9 +111,9 @@ def create_credit_agent():
     def call_llm(state: AgentState, config: RunnableConfig) -> dict:
         tid = (config or {}).get("configurable", {}).get("thread_id", "-")
         logger.info(
-            "Agente de crédito — invocando LLM | cpf=%s | intent=%s",
+            "Agente de entrevista — invocando LLM | cpf=%s | score=%s",
             state.get("customer_cpf"),
-            state.get("intent"),
+            state.get("customer_score"),
             extra={"thread_id": tid},
         )
         try:
@@ -145,7 +131,7 @@ def create_credit_agent():
             return {"messages": [response]}
         except Exception as exc:
             logger.error(
-                "Falha na comunicação com o LLM (crédito): %s",
+                "Falha na comunicação com o LLM (entrevista): %s",
                 exc,
                 exc_info=True,
                 extra={"thread_id": tid},
@@ -173,4 +159,4 @@ def create_credit_agent():
     return graph.compile()
 
 
-credit_agent = create_credit_agent()
+interview_agent = create_interview_agent()

@@ -5,6 +5,7 @@ load_dotenv()
 
 from mcp_server.tools.auth import register_authentication_tools
 from mcp_server.tools.credit import register_credit_tools
+from mcp_server.tools.interview import register_interview_tools
 from mcp_server.tools.routing import register_routing_tools
 from mcp_server.tools.session import register_session_tools
 
@@ -22,6 +23,7 @@ def create_mcp_server() -> FastMCP:
     register_routing_tools(mcp)
     register_session_tools(mcp)
     register_credit_tools(mcp)
+    register_interview_tools(mcp)
     return mcp
 
 

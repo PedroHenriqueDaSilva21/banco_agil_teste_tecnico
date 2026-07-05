@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     conversation_ended: bool
     last_request_status: Optional[str]
     interview_offered: bool
+    returned_from_interview: bool
 
 
 def initial_agent_state(messages: list | None = None) -> AgentState:
@@ -34,6 +35,7 @@ def initial_agent_state(messages: list | None = None) -> AgentState:
         "conversation_ended": False,
         "last_request_status": None,
         "interview_offered": False,
+        "returned_from_interview": False,
     }
 
 

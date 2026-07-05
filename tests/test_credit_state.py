@@ -67,3 +67,28 @@ def test_redirect_to_interview_changes_target():
     result = _apply_tool_side_effects(state, tool_messages)
 
     assert result["target_agent"] == "interview"
+
+
+def test_returned_from_interview_cleared_after_new_request():
+    state = {
+        "customer_limit": 2500.0,
+        "last_request_status": None,
+        "interview_offered": False,
+        "returned_from_interview": True,
+        "conversation_ended": False,
+        "target_agent": "credit",
+    }
+    tool_messages = [
+        ToolMessage(
+            content=(
+                '{"success": true, "status": "aprovado", "new_limit": 3000.0, '
+                '"requested_limit": 3000.0}'
+            ),
+            tool_call_id="1",
+            name="request_credit_increase",
+        )
+    ]
+
+    result = _apply_tool_side_effects(state, tool_messages)
+
+    assert result["returned_from_interview"] is False

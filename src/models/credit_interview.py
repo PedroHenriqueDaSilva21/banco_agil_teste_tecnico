@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class CreditInterview(BaseModel):
-    monthly_income: float = Field(gt=0, description="Monthly income")
+    monthly_income: float = Field(ge=0, description="Monthly income")
     job_type: Literal["formal", "autônomo", "desempregado"] = Field(..., description="Job type")
     monthly_expenses: float = Field(ge=0, description="Monthly fixed expenses")
     dependents: int = Field(ge=0, description="Number of dependents")
