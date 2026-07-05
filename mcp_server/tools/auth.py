@@ -11,6 +11,13 @@ def register_authentication_tools(mcp: FastMCP) -> None:
 
         result = {"success": success, "message": message}
         if success and customer:
-            result["customer_name"] = customer.name
+            result.update(
+                {
+                    "customer_name": customer.name,
+                    "customer_cpf": customer.cpf,
+                    "customer_score": customer.score,
+                    "customer_limit": customer.current_limit,
+                }
+            )
 
         return result

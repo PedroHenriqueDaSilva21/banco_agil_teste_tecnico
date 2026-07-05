@@ -1,5 +1,3 @@
-
-
 import asyncio
 import logging
 import os
@@ -17,7 +15,8 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
-from src.agents.triage import triage_agent
+from src.agents.state import initial_agent_state
+from src.agents.supervisor import supervisor_agent
 from src.utils import configure_logging
 
 
@@ -72,8 +71,8 @@ st.markdown(
 )
 
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "agent_state" not in st.session_state:
+    st.session_state.agent_state = initial_agent_state()
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
@@ -127,8 +126,13 @@ else:
     st.sidebar.warning("Nenhuma ferramenta encontrada.")
 
 st.sidebar.markdown("---")
+st.sidebar.caption("Estado da sessão")
+st.sidebar.write(f"Autenticado: {'Sim' if st.session_state.agent_state.get('authenticated') else 'Não'}")
+st.sidebar.write(f"Tentativas de auth: {st.session_state.agent_state.get('auth_attempts', 0)}")
+st.sidebar.write(f"Agente ativo: {st.session_state.agent_state.get('target_agent') or 'triagem'}")
+
 if st.sidebar.button("🔄 Reiniciar Conversa"):
-    st.session_state.messages = []
+    st.session_state.agent_state = initial_agent_state()
     st.session_state.thread_id = str(uuid.uuid4())
     st.rerun()
 
@@ -139,6 +143,7 @@ st.markdown(
     "Sou o **Lican**, seu assistente de triagem."
 )
 
+
 def extract_text_content(content) -> str:
     if isinstance(content, str):
         return content
@@ -148,7 +153,6 @@ def extract_text_content(content) -> str:
             if isinstance(part, str):
                 text_parts.append(part)
             elif isinstance(part, dict):
-            elif isinstance(part, dict):
                 if part.get("type") == "text":
                     text_parts.append(part.get("text", ""))
                 elif "text" in part and part.get("type") != "reasoning_content":
@@ -157,7 +161,7 @@ def extract_text_content(content) -> str:
     return str(content)
 
 
-for message in st.session_state.messages:
+for message in st.session_state.agent_state.get("messages", []):
     if isinstance(message, HumanMessage):
         with st.chat_message("user"):
             st.write(message.content)
@@ -177,7 +181,8 @@ def process_message(prompt: str) -> None:
     )
 
     user_msg = HumanMessage(content=prompt)
-    st.session_state.messages.append(user_msg)
+    current_state = dict(st.session_state.agent_state)
+    current_state["messages"] = current_state.get("messages", []) + [user_msg]
 
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -186,18 +191,19 @@ def process_message(prompt: str) -> None:
         placeholder = st.empty()
 
         try:
-            response = triage_agent.invoke(
-                {"messages": st.session_state.messages},
+            response = supervisor_agent.invoke(
+                current_state,
                 config={"configurable": {"thread_id": tid}},
             )
 
-
-            st.session_state.messages = response["messages"]
-
+            st.session_state.agent_state = response
 
             last_ai_content = next(
-                (m.content for m in reversed(st.session_state.messages)
-                 if isinstance(m, AIMessage) and m.content),
+                (
+                    m.content
+                    for m in reversed(response.get("messages", []))
+                    if isinstance(m, AIMessage) and m.content
+                ),
                 "Entendido. Processando sua solicitação...",
             )
             last_ai_msg = extract_text_content(last_ai_content)
@@ -212,9 +218,15 @@ def process_message(prompt: str) -> None:
             )
             error_msg = f"Desculpe, ocorreu um erro ao processar sua solicitação: {exc}"
             placeholder.error(error_msg)
-            st.session_state.messages.append(AIMessage(content=error_msg))
+            current_state["messages"].append(AIMessage(content=error_msg))
+            st.session_state.agent_state = current_state
 
 
-
-if user_input := st.chat_input("Digite sua mensagem aqui..."):
+if user_input := st.chat_input(
+    "Digite sua mensagem aqui...",
+    disabled=st.session_state.agent_state.get("conversation_ended", False),
+):
     process_message(user_input)
+
+if st.session_state.agent_state.get("conversation_ended"):
+    st.info("Atendimento encerrado. Clique em **Reiniciar Conversa** para iniciar um novo atendimento.")
