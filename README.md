@@ -10,8 +10,10 @@ Sistema de atendimento ao cliente para o banco digital fictício **Banco Ágil**
 - [Arquitetura](#arquitetura)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Escolhas técnicas](#escolhas-técnicas)
+- [Desafios enfrentados](#desafios-enfrentados)
 - [Tutorial de execução](#tutorial-de-execução)
 - [Testes](#testes)
+- [CI/CD](#cicd)
 - [Próximos passos](#próximos-passos)
 
 ---
@@ -66,7 +68,7 @@ Todos os agentes definidos em `requisitos.md` estão implementados.
 - **Supervisor LangGraph** — handover implícito entre agentes via `target_agent` no state
 - **State compartilhado** (`AgentState`) — autenticação, dados do cliente, intenção, status de pedidos
 - **Logging estruturado** com mascaramento de PII (CPF, data) em `data/logs/flow.log`
-- **91 testes unitários e de integração** cobrindo services, sanitizer, roteamento e fluxos E2E mockados
+- **92 testes unitários e de integração** cobrindo services, sanitizer, roteamento e fluxos E2E mockados
 
 ---
 
@@ -221,6 +223,7 @@ banco_agil/
 │   └── test_triage_state.py
 ├── ui/
 │   └── streamlit_app.py                  # Interface de chat
+├── .github/workflows/ci.yml              # Pipeline CI (pytest)
 ├── .env.example
 ├── requirements.txt
 └── requisitos.md                         # Especificação do desafio
@@ -236,6 +239,20 @@ banco_agil/
 - **Classificação de intenção determinística** — `RoutingService` usa regex/keywords testáveis, reduzindo dependência de alucinação do LLM para roteamento.
 - **Prompts externos** — arquivos `.md` e `.txt` em `src/agents/prompts/`, carregados via `load_prompt()`.
 - **Amazon Bedrock (Nova Micro)** — modelo leve e rápido para fluxos conversacionais com tool calling.
+
+---
+
+## Desafios enfrentados
+
+| Desafio | Como foi resolvido |
+| --- | --- |
+| **Roteamento implícito entre agentes** | Supervisor LangGraph com persona única (Lican) e handover via `target_agent` no state, sem expor a troca ao cliente na UI |
+| **Confiabilidade do LLM em regras críticas** | Side effects determinísticos no grafo (3 tentativas de auth, status de pedidos, flags de entrevista, encerramento pós-cotação) complementam os prompts |
+| **Desacoplamento agentes × dados** | Servidor MCP expõe operações de negócio; agentes invocam tools sem acessar CSV ou APIs diretamente |
+| **Proteção contra prompt injection** | `sanitize_input()` bloqueia padrões conhecidos e limita tamanho da mensagem antes de chegar ao LLM |
+| **PII em logs** | Middleware de logging mascara CPF e datas em `data/logs/flow.log` |
+| **Testes sem Bedrock em CI** | LLM e MCP mockados em `test_graph_integration.py`; services testados com CSV temporário via fixtures |
+| **API de câmbio instável** | `ExchangeService` trata timeout, resposta inválida e moeda não suportada com mensagens claras ao cliente |
 
 ---
 
@@ -311,7 +328,13 @@ pytest tests/ -v
 
 ---
 
+## CI/CD
+
+Pipeline GitHub Actions em `.github/workflows/ci.yml` executa `pytest tests/ -v` em Python 3.12. Variáveis AWS dummy são injetadas no CI para permitir import dos agentes sem credenciais reais.
+
+---
+
 ## Próximos passos
 
 - [ ] Testes end-to-end com Bedrock real (ambiente de staging)
-- [ ] CI/CD com execução automática dos testes
+- [x] CI/CD com execução automática dos testes

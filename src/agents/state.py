@@ -19,6 +19,7 @@ class AgentState(TypedDict):
     last_request_status: Optional[str]
     interview_offered: bool
     returned_from_interview: bool
+    quote_delivered: bool
 
 
 def initial_agent_state(messages: list | None = None) -> AgentState:
@@ -36,6 +37,7 @@ def initial_agent_state(messages: list | None = None) -> AgentState:
         "last_request_status": None,
         "interview_offered": False,
         "returned_from_interview": False,
+        "quote_delivered": False,
     }
 
 

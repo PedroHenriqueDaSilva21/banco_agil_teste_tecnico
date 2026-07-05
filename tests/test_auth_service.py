@@ -31,7 +31,7 @@ def test_authenticate_success(auth_service):
 
 
 def test_authenticate_success_with_formatting(auth_service):
-    # Teste de robustez com CPF formatado e data em outro padrão (DD/MM/YYYY)
+    """Aceita CPF formatado e data de nascimento em DD/MM/YYYY."""
     success, customer, message = auth_service.authenticate("123.456.789-01", "15/01/1990")
     assert success is True
     assert customer is not None

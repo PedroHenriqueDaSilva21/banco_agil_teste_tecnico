@@ -40,6 +40,9 @@ def _route_after_agent(state: AgentState) -> str:
     if getattr(last_message, "tool_calls", None):
         return "tools"
 
+    if state.get("quote_delivered"):
+        return "finalize"
+
     return END
 
 
@@ -48,14 +51,20 @@ def _apply_tool_side_effects(
     tool_messages: list[ToolMessage],
 ) -> dict:
     conversation_ended = state.get("conversation_ended", False)
+    quote_delivered = state.get("quote_delivered", False)
 
     for msg in tool_messages:
         payload = parse_tool_payload(msg.content)
 
         if msg.name == "end_conversation" and payload.get("ended"):
             conversation_ended = True
+        elif msg.name == "get_currency_quote" and payload.get("success"):
+            quote_delivered = True
 
-    return {"conversation_ended": conversation_ended}
+    return {
+        "conversation_ended": conversation_ended,
+        "quote_delivered": quote_delivered,
+    }
 
 
 def create_exchange_agent():
@@ -122,15 +131,27 @@ def create_exchange_agent():
         side_effects = _apply_tool_side_effects(state, tool_messages)
         return {"messages": tool_result["messages"], **side_effects}
 
+    def finalize_exchange(state: AgentState) -> dict:
+        if state.get("conversation_ended"):
+            return {}
+        logger.info("Cotação entregue — encerrando atendimento de câmbio.")
+        return {"conversation_ended": True}
+
     graph = StateGraph(AgentState)
     graph.add_node("sanitize", sanitize_node)
     graph.add_node("agent", call_llm)
     graph.add_node("tools", process_tools)
+    graph.add_node("finalize", finalize_exchange)
 
     graph.add_edge(START, "sanitize")
     graph.add_conditional_edges("sanitize", after_sanitize, {"agent": "agent", END: END})
-    graph.add_conditional_edges("agent", _route_after_agent, {"tools": "tools", END: END})
+    graph.add_conditional_edges(
+        "agent",
+        _route_after_agent,
+        {"tools": "tools", "finalize": "finalize", END: END},
+    )
     graph.add_edge("tools", "agent")
+    graph.add_edge("finalize", END)
 
     return graph.compile()
 

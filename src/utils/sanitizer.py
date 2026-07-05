@@ -2,7 +2,6 @@ import re
 from typing import Optional
 
 
-# Padrões conhecidos de tentativas de prompt injection
 _INJECTION_PATTERNS = [
     r"ignore\s+(all\s+)?(previous|above|prior)\s+instructions?",
     r"forget\s+(all\s+)?(previous|above|prior|your)\s+instructions?",
@@ -26,7 +25,6 @@ _COMPILED_PATTERNS = [
     for pattern in _INJECTION_PATTERNS
 ]
 
-# Tamanho máximo de uma mensagem de usuário (proteção contra ataques por volume)
 MAX_INPUT_LENGTH = 1000
 
 
