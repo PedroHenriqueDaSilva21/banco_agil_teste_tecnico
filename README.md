@@ -1,100 +1,278 @@
 # Banco Ágil IA
 
-## Índice
-- [Objetivo](#objetivo)
-- [Stack](#stack)
-	- [Tecnologias Principais](#tecnologias-principais)
-	- [Dependências e Versões](#dependências-e-versões)
-- [Decisão arquitetural](#decisão-arquitetural)
-	- [Fluxo base da arquitetura](#fluxo-base-da-arquitetura)
+Sistema de atendimento ao cliente para o banco digital fictício **Banco Ágil**, operado por agentes de IA especializados. O cliente interage com um único assistente (**Lican**), enquanto internamente um supervisor roteia a conversa para o agente adequado de forma transparente.
 
-### Objetivo
-Criar um agente de de IA para operações bancárias, ele deverá operar com operações de triagem, crédito, entrevistá para atualizar score de crédito, e um agente de câmbio.
+## Índice
+
+- [Visão geral](#visão-geral)
+- [Funcionalidades implementadas](#funcionalidades-implementadas)
+- [Stack](#stack)
+- [Arquitetura](#arquitetura)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Escolhas técnicas](#escolhas-técnicas)
+- [Tutorial de execução](#tutorial-de-execução)
+- [Testes](#testes)
+- [Próximos passos](#próximos-passos)
+
+---
+
+## Visão geral
+
+O projeto implementa um fluxo de atendimento bancário conversacional com:
+
+- **Autenticação** de clientes via CPF e data de nascimento contra `data/clientes.csv`
+- **Triagem inteligente** com classificação de intenção e roteamento implícito
+- **Operações de crédito** — consulta de limite e solicitação de aumento com validação de score
+- **Interface Streamlit** para simulação do atendimento completo
+- **Servidor MCP** (Model Context Protocol) desacoplando agentes de IA das operações de dados
+
+Agentes ainda não implementados: **Entrevista de Crédito** e **Câmbio** (stubs preparados no supervisor).
+
+---
+
+## Funcionalidades implementadas
+
+### Agente de Triagem
+- Saudação e coleta de CPF + data de nascimento
+- Autenticação via MCP → `AuthService` → `CustomerRepository`
+- Controle de **3 tentativas** de autenticação (enforcement no grafo, não só no prompt)
+- Classificação de intenção por tags: `CREDIT_LIMIT`, `CREDIT_INCREASE`, `EXCHANGE`, `UNKNOWN`
+- Encerramento de sessão via tool `end_conversation`
+- Sanitização de entrada contra prompt injection
+
+### Agente de Crédito
+- Consulta de limite disponível (`get_credit_limit`)
+- Solicitação de aumento de limite (`request_credit_increase`)
+- Registro formal em `data/solicitacoes_aumento_limite.csv`
+- Validação do score contra `data/score_limite.csv` → status `aprovado` ou `rejeitado`
+- Atualização do limite em `data/clientes.csv` quando aprovado
+- Oferta de redirecionamento para entrevista de crédito após rejeição (`redirect_to_interview`)
+
+### Infraestrutura transversal
+- **Supervisor LangGraph** — handover implícito entre agentes via `target_agent` no state
+- **State compartilhado** (`AgentState`) — autenticação, dados do cliente, intenção, status de pedidos
+- **Logging estruturado** com mascaramento de PII (CPF, data) em `data/logs/flow.log`
+- **28 testes unitários** cobrindo services, roteamento e side effects dos grafos
+
+---
 
 ## Stack
 
-### Tecnologias Principais
+### Tecnologias principais
 
 | Camada | Tecnologia |
 | --- | --- |
-| Linguagem | Python 3.12.3 |
-| LLM / Infraestrutura | Amazon Bedrock e Docker |
-| Modelo de embeddings utilizado | Titan Embeddings v2 |
-| Modelo de raciocínio utilizado | AWS Nova Micro |
+| Linguagem | Python 3.12+ |
+| LLM | Amazon Bedrock (Nova Micro) |
+| Orquestração | LangChain + LangGraph |
+| Protocolo de tools | MCP (stdio) |
+| Validação | Pydantic / pydantic-settings |
+| Interface | Streamlit |
+| Persistência | CSV |
+| Testes | pytest |
 
-### Dependências e Versões
+### Dependências principais
 
-As principais bibliotecas e frameworks de apoio do projeto são controlados e pinados nas seguintes versões:
+| Biblioteca | Descrição |
+| --- | --- |
+| `mcp` | Servidor MCP para exposição de ferramentas |
+| `langchain` / `langgraph` | Orquestração de agentes e grafos de estado |
+| `langchain-aws` | Integração com Amazon Bedrock |
+| `boto3` | SDK AWS |
+| `pydantic` | Schemas e validação de dados |
+| `streamlit` | UI de chat |
+| `pytest` | Testes unitários |
 
-| Biblioteca | Versão | Descrição |
+Versões pinadas em `requirements.txt`.
+
+---
+
+## Arquitetura
+
+### Fluxo de comunicação
+
+```
+Usuário (Streamlit)
+  └─► Supervisor (LangGraph)
+        ├─► Agente de Triagem
+        │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
+        ├─► Agente de Crédito
+        │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
+        ├─► Entrevista de Crédito (stub)
+        └─► Câmbio (stub)
+```
+
+### Camadas e responsabilidades
+
+| Camada | Responsabilidade |
+| --- | --- |
+| `agents/` | Grafos LangGraph, prompts e orquestração conversacional |
+| `tools/` | Wrappers LangChain que invocam o servidor MCP |
+| `mcp_server/` | Exposição das operações como tools MCP |
+| `services/` | Regras de negócio, validações e cálculos |
+| `repositories/` | Persistência em arquivos CSV |
+| `models/` | Contratos Pydantic por domínio |
+| `utils/` | Sanitizer, logging, carregamento de prompts |
+
+### Tools MCP disponíveis
+
+| Tool | Service | Descrição |
 | --- | --- | --- |
-| **mcp** | `1.28.1` | Protocolo para comunicação externa de recursos e ferramentas |
-| **langchain** | `1.3.11` | Framework principal de orquestração do LLM |
-| **langgraph** | `1.2.7` | Orquestração de grafos de estados e fluxos de conversa (handovers) |
-| **boto3** | `1.43.40` | SDK oficial da AWS para conexão e comunicação com o Bedrock |
-| **pydantic** | `2.13.4` | Validação de dados de entrada e conversão de schemas de dados |
-| **pydantic-settings** | `2.14.2` | Carregamento automático e validação de configurações via variáveis de ambiente |
-| **streamlit** | `1.58.0` | Interface web interativa simples para simulação de atendimentos |
-| **pandas** | `3.0.3` | Manipulação e leitura estruturada de arquivos CSV (banco de dados) |
-| **pytest** | `9.1.1` | Framework de testes unitários e de integração |
-| **python-dotenv** | `1.2.2` | Carregamento de variáveis de ambiente do arquivo `.env` |
+| `authenticate_customer` | `AuthService` | Valida CPF e data de nascimento |
+| `classify_intent` | `RoutingService` | Classifica intenção e define agente destino |
+| `end_conversation` | `SessionService` | Encerra o atendimento |
+| `get_credit_limit` | `CreditService` | Consulta limite e teto permitido |
+| `request_credit_increase` | `CreditService` | Solicita aumento com validação de score |
+| `redirect_to_interview` | — | Sinaliza redirecionamento para entrevista |
 
-
-
-## Decisão arquitetural
-
-### Fluxo base da arquitetura
+### Fluxo de atendimento
 
 ```
-Usuário
-  -> Agent de Triagem
-	  -> Tool de Autenticação
-		  -> Service de Validação
-			  -> CustomerRepository (CSV)
-	  -> Tool de Crédito
-		  -> Service de Crédito/Score
-			  -> CustomerRepository / ScoreLimitRepository (CSV)
+1. Triagem: saudação → CPF → nascimento → autenticação
+2. Triagem: identificação do serviço → classify_intent → target_agent
+3. Supervisor: roteia para agente especializado (handover implícito)
+4. Crédito: consulta ou solicitação de aumento via tools
+5. Se rejeitado: oferta de entrevista → redirect_to_interview
+6. Encerramento: end_conversation a qualquer momento
 ```
 
-O sistema vai seguir a estrutura MCP para a comunicação dos agentes de IA com as operações a serem realizadas e gravadas nos arquivos CSV. Esse padrão vai ser seguido para desacoplar a lógica dos agentes de IA com as operações de fontes de dados, fazendo com que haja um fluxo mais previsível de repasse da informação entre o services para o agente, facilitando a manutenção e o rastreamento dos logs.
+---
 
-dentro do diretório src teremos os seguintes estrutura de pastas:
+## Estrutura do projeto
 
 ```
-src/
-├── agents/
-│   ├── triage.py
-│   ├── credit.py
-│   ├── interview.py
-│   └── exchange.py
-├── tools/
-│   ├── auth.py
-│   ├── credit.py
-│   ├── interview.py
-│   └── cambio.py
-├── services/
-│   ├── routing.py
-│   └── score.py
-├── repositories/
-│   ├── __init__.py
-│   ├── credit_request_repository.py
-│   ├── customer_repository.py
-│   └── score_limit_repository.py
-├── models/
-│   └── schemas.py
-└── config/
-	└── settings.py
+banco_agil/
+├── data/
+│   ├── clientes.csv                      # Base de clientes
+│   ├── score_limite.csv                  # Tabela score → limite máximo
+│   ├── solicitacoes_aumento_limite.csv   # Pedidos de aumento
+│   └── logs/flow.log                     # Logs de execução
+├── mcp_server/
+│   ├── server.py                         # Entry point do servidor MCP
+│   └── tools/
+│       ├── auth.py
+│       ├── credit.py
+│       ├── routing.py
+│       └── session.py
+├── src/
+│   ├── agents/
+│   │   ├── prompts/                      # Prompts dos agentes e descrições de tools
+│   │   ├── state.py                      # AgentState compartilhado
+│   │   ├── supervisor.py                 # Roteamento entre agentes
+│   │   ├── triage.py                     # Agente de triagem
+│   │   └── credit.py                     # Agente de crédito
+│   ├── config/
+│   │   └── settings.py                   # Variáveis de ambiente (Bedrock)
+│   ├── models/                           # Schemas Pydantic
+│   ├── repositories/                     # Acesso aos CSVs
+│   ├── services/
+│   │   ├── auth_service.py
+│   │   ├── credit_service.py
+│   │   ├── routing.py
+│   │   └── session_service.py
+│   ├── tools/                            # Wrappers LangChain → MCP
+│   │   ├── mcp_client.py
+│   │   ├── auth.py
+│   │   ├── credit.py
+│   │   ├── routing.py
+│   │   └── session.py
+│   └── utils/                            # Sanitizer, logging, prompt loader
+├── tests/
+│   ├── test_auth_service.py
+│   ├── test_credit_service.py
+│   ├── test_credit_state.py
+│   ├── test_routing_service.py
+│   ├── test_session_service.py
+│   └── test_triage_state.py
+├── ui/
+│   └── streamlit_app.py                  # Interface de chat
+├── .env.example
+├── requirements.txt
+└── requisitos.md                         # Especificação do desafio
 ```
-agents: começará com a *triagem*, onde, após a autenticação, ele vai classificar a intenção do usuário por meio de tags pré-definidas.
 
-tools: conforme a recomendação da estrutura MCP, iremos estabelecer as ferramentas que cada agent poderá ter acesso, limitando a atuação de cada uma ao que for necessário para chamar os services específicos e repassar a resposta para o agent geral, evitando alucinação e garantindo uma busca melhor da informação que, de fato, o cliente está buscando.
+---
 
-config: guardará as configurações centrais do projeto, como caminhos dos arquivos CSV, constantes de domínio, parâmetros de execução e eventuais chaves ou variáveis de ambiente necessárias para o funcionamento da aplicação. A ideia é centralizar tudo que for configuração para evitar valores espalhados pelo código e facilitar ajustes futuros.
+## Escolhas técnicas
 
-models: vai funcionar como a camada de contratos da aplicação, definindo os dados e o tipo de cada informação a ser inserida, separada por domínio (score, cliente, etc).
+- **MCP como fronteira** — agentes não acessam CSV diretamente; tools passam pelo servidor MCP, facilitando manutenção, logs e substituição de fontes de dados.
+- **LangGraph com state tipado** — controle determinístico de tentativas de auth, roteamento e status de pedidos, complementando as instruções do LLM.
+- **Supervisor pattern** — o cliente fala sempre com o Lican; o supervisor delega internamente sem expor a troca de agente.
+- **Classificação de intenção determinística** — `RoutingService` usa regex/keywords testáveis, reduzindo dependência de alucinação do LLM para roteamento.
+- **Prompts externos** — arquivos `.md` e `.txt` em `src/agents/prompts/`, carregados via `load_prompt()`.
+- **Amazon Bedrock (Nova Micro)** — modelo leve e rápido para fluxos conversacionais com tool calling.
 
-repositories: estabelece a conexão com a persistência de dados em arquivos CSV de forma desacoplada por domínio e facilitando uma migração futura para bancos de dados como MySQL, SQLite, PostgreSQL etc.
+---
 
-services: aqui vai ficar a regra de negócio, os cálculos, as validações e também as operações mais gerais, separadas por domínio.
+## Tutorial de execução
 
-tests: camada de testes, aqui irei colocar somente alguns básicos para validar as integrações entre os serviços e para validar se as tratativas contra prompt injection estão bem definidas. Vou tratar uma cobertura de 80% dos cenários principais como resultado positivo, por se tratar somente de um teste.
+### Pré-requisitos
+
+- Python 3.12+
+- Credenciais AWS com acesso ao Amazon Bedrock
+
+### Configuração
+
+```bash
+# Clone e entre no diretório do projeto
+cd banco_agil
+
+# Crie e ative o ambiente virtual
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux/macOS
+
+# Instale as dependências
+pip install -r requirements.txt
+
+# Configure as variáveis de ambiente
+cp .env.example .env
+# Edite .env com suas credenciais AWS e modelo Bedrock
+```
+
+### Executar a interface
+
+```bash
+streamlit run ui/streamlit_app.py
+```
+
+### Dados de teste
+
+| CPF | Nome | Nascimento | Score | Limite |
+| --- | --- | --- | --- | --- |
+| 12345678901 | Ana Silva | 1990-01-15 | ~630 | R$ 2.500 |
+| 98765432100 | Bruno Santos | 1985-11-20 | 250 | R$ 500 |
+| 11122233344 | Carlos Oliveira | 1995-07-30 | 850 | R$ 5.000 |
+
+### Exemplo de fluxo
+
+1. Informe CPF e data de nascimento
+2. Diga *"qual meu limite?"* → consulta de crédito
+3. Diga *"quero aumentar para 3000"* → solicitação (aprovada para Ana Silva)
+4. Diga *"quero aumentar para 5000"* → rejeitada → oferta de entrevista
+
+---
+
+## Testes
+
+```bash
+pytest tests/ -v
+```
+
+| Arquivo | Cobertura |
+| --- | --- |
+| `test_auth_service.py` | Autenticação, formatação de CPF/data |
+| `test_routing_service.py` | Classificação de intenções |
+| `test_session_service.py` | Encerramento de sessão |
+| `test_triage_state.py` | Side effects do grafo de triagem |
+| `test_credit_service.py` | Consulta, aprovação e rejeição de limite |
+| `test_credit_state.py` | Side effects do grafo de crédito |
+
+---
+
+## Próximos passos
+
+- [ ] Agente de Entrevista de Crédito (cálculo de score ponderado)
+- [ ] Agente de Câmbio (cotação via API externa)
+- [ ] Substituir stubs do supervisor pelos agentes completos
+- [ ] Cobertura de testes para sanitizer (prompt injection)
