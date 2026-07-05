@@ -1,5 +1,4 @@
-import asyncio
-import logging
+﻿import logging
 import os
 import sys
 import uuid
@@ -11,9 +10,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-
 
 from src.agents.state import initial_agent_state
 from src.agents.supervisor import supervisor_agent
@@ -30,7 +26,7 @@ st.set_page_config(
     page_title="Banco Ágil - Atendimento Inteligente",
     page_icon="🏦",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -38,32 +34,80 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-color: #0e1117;
-        color: #ecf0f1;
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+        color: #0f172a;
     }
-    .status-container {
-        padding: 10px;
-        border-radius: 5px;
-        background-color: #1e293b;
-        margin-bottom: 15px;
-        border: 1px solid #334155;
+    #MainMenu {
+        visibility: hidden;
     }
-    .status-dot {
-        height: 10px;
-        width: 10px;
-        background-color: #10b981;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 5px;
+    footer {
+        visibility: hidden;
     }
-    .tool-tag {
-        display: inline-block;
-        background-color: #3b82f6;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.8em;
-        margin: 2px;
+    section[data-testid="stSidebar"] {
+        display: none;
+    }
+    header[data-testid="stHeader"] {
+        background: transparent;
+    }
+    div.block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 100%;
+    }
+    .app-shell {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+    .hero {
+        padding: 1.25rem 1.5rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(10px);
+        margin-bottom: 1rem;
+    }
+    .hero h1 {
+        color: #0f172a;
+        font-size: 2rem;
+        margin-bottom: 0.35rem;
+    }
+    .hero p {
+        color: #334155;
+        margin-bottom: 0;
+    }
+    [data-testid="stChatMessage"] {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 18px;
+        padding: 0.5rem 0.75rem;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+        color: #0f172a;
+    }
+    [data-testid="stChatMessage"] p,
+    [data-testid="stChatMessage"] span,
+    [data-testid="stChatMessage"] div {
+        color: #0f172a !important;
+    }
+    [data-testid="stChatMessage"][aria-label="user"] {
+        background: linear-gradient(180deg, #eff6ff 0%, #e0efff 100%);
+    }
+    [data-testid="stChatMessage"][aria-label="assistant"] {
+        background: rgba(255, 255, 255, 0.98);
+    }
+    [data-testid="stChatInput"] textarea {
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 14px;
+    }
+    [data-testid="stButton"] button {
+        border-radius: 999px;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        background: #ffffff;
+        color: #1d4ed8;
+        font-weight: 600;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
     }
     </style>
     """,
@@ -76,73 +120,6 @@ if "agent_state" not in st.session_state:
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
-
-
-def get_mcp_tools() -> list[str]:
-    async def _fetch():
-        server_params = StdioServerParameters(
-            command=sys.executable,
-            args=["-m", "mcp_server.server"],
-            env=dict(os.environ),
-        )
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                tools_list = await session.list_tools()
-                return [t.name for t in tools_list.tools]
-
-    try:
-        return asyncio.run(_fetch())
-    except Exception as exc:
-        logger.error("Falha ao listar ferramentas MCP: %s", exc)
-        return [f"Erro: {exc}"]
-
-
-st.sidebar.title("Configurações & MCP")
-st.sidebar.markdown("---")
-
-with st.sidebar.status("Conectando ao Servidor MCP...", expanded=True) as status_box:
-    mcp_tools = get_mcp_tools()
-    status_box.update(label="Conectado ao Servidor MCP", state="complete")
-
-st.sidebar.markdown(
-    """
-    <div class="status-container">
-        <span class="status-dot"></span>
-        <strong>Servidor MCP:</strong> Ativo (Stdio)
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.sidebar.subheader("Ferramentas MCP Disponíveis")
-if mcp_tools:
-    for tool_name in mcp_tools:
-        st.sidebar.markdown(
-            f'<span class="tool-tag">{tool_name}</span>',
-            unsafe_allow_html=True,
-        )
-else:
-    st.sidebar.warning("Nenhuma ferramenta encontrada.")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("Estado da sessão")
-st.sidebar.write(f"Autenticado: {'Sim' if st.session_state.agent_state.get('authenticated') else 'Não'}")
-st.sidebar.write(f"Tentativas de auth: {st.session_state.agent_state.get('auth_attempts', 0)}")
-if st.session_state.agent_state.get("last_request_status"):
-    st.sidebar.write(f"Último pedido: {st.session_state.agent_state['last_request_status']}")
-
-if st.sidebar.button("🔄 Reiniciar Conversa"):
-    st.session_state.agent_state = initial_agent_state()
-    st.session_state.thread_id = str(uuid.uuid4())
-    st.rerun()
-
-
-st.title("🏦 Lican - Portal Banco Ágil")
-st.markdown(
-    "Bem-vindo ao canal de atendimento do Banco Ágil. "
-    "Sou o **Lican**, seu assistente virtual."
-)
 
 
 def extract_text_content(content) -> str:
@@ -162,15 +139,16 @@ def extract_text_content(content) -> str:
     return str(content)
 
 
-for message in st.session_state.agent_state.get("messages", []):
-    if isinstance(message, HumanMessage):
-        with st.chat_message("user"):
-            st.write(message.content)
-    elif isinstance(message, AIMessage):
-        msg_text = extract_text_content(message.content)
-        if msg_text:
-            with st.chat_message("assistant"):
-                st.write(msg_text)
+def render_history() -> None:
+    for message in st.session_state.agent_state.get("messages", []):
+        if isinstance(message, HumanMessage):
+            with st.chat_message("user"):
+                st.write(message.content)
+        elif isinstance(message, AIMessage):
+            msg_text = extract_text_content(message.content)
+            if msg_text:
+                with st.chat_message("assistant"):
+                    st.write(msg_text)
 
 
 def process_message(prompt: str) -> None:
@@ -181,53 +159,62 @@ def process_message(prompt: str) -> None:
         extra={"thread_id": tid},
     )
 
-    user_msg = HumanMessage(content=prompt)
+    if not prompt.strip():
+        return
+
     current_state = dict(st.session_state.agent_state)
-    current_state["messages"] = current_state.get("messages", []) + [user_msg]
+    current_state["pending_user_input"] = prompt
 
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        placeholder = st.empty()
-
-        try:
+    try:
+        with st.spinner("Processando atendimento..."):
             response = supervisor_agent.invoke(
                 current_state,
                 config={"configurable": {"thread_id": tid}},
             )
 
-            st.session_state.agent_state = response
+        st.session_state.agent_state = response
+        st.rerun()
 
-            last_ai_content = next(
-                (
-                    m.content
-                    for m in reversed(response.get("messages", []))
-                    if isinstance(m, AIMessage) and m.content
-                ),
-                "Entendido. Processando sua solicitação...",
-            )
-            last_ai_msg = extract_text_content(last_ai_content)
-            placeholder.markdown(last_ai_msg)
-
-        except Exception as exc:
-            logger.error(
-                "Erro ao processar mensagem: %s",
-                exc,
-                exc_info=True,
-                extra={"thread_id": tid},
-            )
-            error_msg = f"Desculpe, ocorreu um erro ao processar sua solicitação: {exc}"
-            placeholder.error(error_msg)
-            current_state["messages"].append(AIMessage(content=error_msg))
-            st.session_state.agent_state = current_state
+    except Exception as exc:
+        logger.error(
+            "Erro ao processar mensagem: %s",
+            exc,
+            exc_info=True,
+            extra={"thread_id": tid},
+        )
+        error_msg = f"Desculpe, ocorreu um erro ao processar sua solicitação: {exc}"
+        current_state["pending_user_input"] = None
+        current_state["messages"].append(AIMessage(content=error_msg))
+        st.session_state.agent_state = current_state
+        st.rerun()
 
 
-if user_input := st.chat_input(
-    "Digite sua mensagem aqui...",
-    disabled=st.session_state.agent_state.get("conversation_ended", False),
-):
-    process_message(user_input)
+with st.container():
+    header_left, header_right = st.columns([6, 1])
+    with header_left:
+        st.markdown(
+            """
+            <div class="hero">
+                <h1>Banco Ágil</h1>
+                <p>Atendimento em tela cheia com o assistente Lican.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with header_right:
+        st.write("")
+        if st.button("Reiniciar conversa", use_container_width=True):
+            st.session_state.agent_state = initial_agent_state()
+            st.session_state.thread_id = str(uuid.uuid4())
+            st.rerun()
 
-if st.session_state.agent_state.get("conversation_ended"):
-    st.info("Atendimento encerrado. Clique em **Reiniciar Conversa** para iniciar um novo atendimento.")
+    render_history()
+
+    if user_input := st.chat_input(
+        "Digite sua mensagem aqui...",
+        disabled=st.session_state.agent_state.get("conversation_ended", False),
+    ):
+        process_message(user_input)
+
+    if st.session_state.agent_state.get("conversation_ended"):
+        st.info("Atendimento encerrado. Clique em Reiniciar conversa para iniciar um novo atendimento.")
