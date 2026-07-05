@@ -26,7 +26,7 @@ O projeto implementa um fluxo de atendimento bancário conversacional com:
 - **Interface Streamlit** para simulação do atendimento completo
 - **Servidor MCP** (Model Context Protocol) desacoplando agentes de IA das operações de dados
 
-Agentes ainda não implementados: **Entrevista de Crédito** e **Câmbio** (stubs preparados no supervisor).
+Agentes ainda não implementados: **Câmbio** (stub preparado no supervisor).
 
 ---
 
@@ -48,11 +48,18 @@ Agentes ainda não implementados: **Entrevista de Crédito** e **Câmbio** (stub
 - Atualização do limite em `data/clientes.csv` quando aprovado
 - Oferta de redirecionamento para entrevista de crédito após rejeição (`redirect_to_interview`)
 
+### Agente de Entrevista de Crédito
+- Entrevista conversacional estruturada (renda, emprego, despesas, dependentes, dívidas)
+- Cálculo de score ponderado (0–1000) conforme fórmula do desafio
+- Atualização do score em `data/clientes.csv`
+- Redirecionamento de volta ao crédito para nova análise (`redirect_to_credit`)
+- Loop completo: crédito → entrevista → crédito
+
 ### Infraestrutura transversal
 - **Supervisor LangGraph** — handover implícito entre agentes via `target_agent` no state
 - **State compartilhado** (`AgentState`) — autenticação, dados do cliente, intenção, status de pedidos
 - **Logging estruturado** com mascaramento de PII (CPF, data) em `data/logs/flow.log`
-- **28 testes unitários** cobrindo services, roteamento e side effects dos grafos
+- **37 testes unitários** cobrindo services, roteamento e side effects dos grafos
 
 ---
 
@@ -98,7 +105,8 @@ Usuário (Streamlit)
         │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
         ├─► Agente de Crédito
         │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
-        ├─► Entrevista de Crédito (stub)
+        ├─► Entrevista de Crédito
+        │     └─► Tools LangChain ──► MCP Server (stdio) ──► Services ──► Repositories (CSV)
         └─► Câmbio (stub)
 ```
 
@@ -124,6 +132,8 @@ Usuário (Streamlit)
 | `get_credit_limit` | `CreditService` | Consulta limite e teto permitido |
 | `request_credit_increase` | `CreditService` | Solicita aumento com validação de score |
 | `redirect_to_interview` | — | Sinaliza redirecionamento para entrevista |
+| `submit_credit_interview` | `InterviewService` | Registra entrevista e recalcula score |
+| `redirect_to_credit` | — | Sinaliza retorno ao agente de crédito |
 
 ### Fluxo de atendimento
 
@@ -133,7 +143,9 @@ Usuário (Streamlit)
 3. Supervisor: roteia para agente especializado (handover implícito)
 4. Crédito: consulta ou solicitação de aumento via tools
 5. Se rejeitado: oferta de entrevista → redirect_to_interview
-6. Encerramento: end_conversation a qualquer momento
+6. Entrevista: coleta dados → submit_credit_interview → redirect_to_credit
+7. Crédito: nova análise de aumento com score atualizado
+8. Encerramento: end_conversation a qualquer momento
 ```
 
 ---
@@ -160,7 +172,8 @@ banco_agil/
 │   │   ├── state.py                      # AgentState compartilhado
 │   │   ├── supervisor.py                 # Roteamento entre agentes
 │   │   ├── triage.py                     # Agente de triagem
-│   │   └── credit.py                     # Agente de crédito
+│   │   ├── credit.py                     # Agente de crédito
+│   │   └── interview.py                  # Agente de entrevista de crédito
 │   ├── config/
 │   │   └── settings.py                   # Variáveis de ambiente (Bedrock)
 │   ├── models/                           # Schemas Pydantic
@@ -168,12 +181,14 @@ banco_agil/
 │   ├── services/
 │   │   ├── auth_service.py
 │   │   ├── credit_service.py
+│   │   ├── interview_service.py
 │   │   ├── routing.py
 │   │   └── session_service.py
 │   ├── tools/                            # Wrappers LangChain → MCP
 │   │   ├── mcp_client.py
 │   │   ├── auth.py
 │   │   ├── credit.py
+│   │   ├── interview.py
 │   │   ├── routing.py
 │   │   └── session.py
 │   └── utils/                            # Sanitizer, logging, prompt loader
@@ -181,6 +196,8 @@ banco_agil/
 │   ├── test_auth_service.py
 │   ├── test_credit_service.py
 │   ├── test_credit_state.py
+│   ├── test_interview_service.py
+│   ├── test_interview_state.py
 │   ├── test_routing_service.py
 │   ├── test_session_service.py
 │   └── test_triage_state.py
@@ -267,12 +284,13 @@ pytest tests/ -v
 | `test_triage_state.py` | Side effects do grafo de triagem |
 | `test_credit_service.py` | Consulta, aprovação e rejeição de limite |
 | `test_credit_state.py` | Side effects do grafo de crédito |
+| `test_interview_service.py` | Cálculo de score e persistência da entrevista |
+| `test_interview_state.py` | Side effects do grafo de entrevista |
 
 ---
 
 ## Próximos passos
 
-- [ ] Agente de Entrevista de Crédito (cálculo de score ponderado)
 - [ ] Agente de Câmbio (cotação via API externa)
-- [ ] Substituir stubs do supervisor pelos agentes completos
+- [ ] Substituir stub do supervisor pelo agente de câmbio
 - [ ] Cobertura de testes para sanitizer (prompt injection)
