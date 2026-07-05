@@ -1,1 +1,0 @@
-Consulta o limite de crédito disponível do cliente autenticado. Use quando o cliente quiser saber seu limite atual.

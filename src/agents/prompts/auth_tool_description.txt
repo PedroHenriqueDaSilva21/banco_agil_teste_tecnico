@@ -1,1 +1,0 @@
-Autentica o cliente no sistema do Banco Ágil usando CPF e data de nascimento. Deve ser chamada assim que o cliente fornecer o CPF e a data de nascimento.

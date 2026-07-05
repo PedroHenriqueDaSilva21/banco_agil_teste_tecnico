@@ -1,1 +1,0 @@
-Registra a entrevista de crédito com os dados financeiros coletados, recalcula o score (0–1000) e atualiza clientes.csv. Chame somente após coletar renda, emprego, despesas, dependentes e dívidas.

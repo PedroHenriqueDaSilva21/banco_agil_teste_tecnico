@@ -1,1 +1,0 @@
-Redireciona o cliente para a entrevista de crédito. Use quando o cliente aceitar realizar a entrevista após uma solicitação de aumento rejeitada.

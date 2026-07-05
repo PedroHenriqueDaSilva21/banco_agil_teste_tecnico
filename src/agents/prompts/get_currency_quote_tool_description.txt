@@ -1,1 +1,0 @@
-Consulta a cotação atual de uma moeda em relação ao real (BRL) via API externa. Use quando o cliente solicitar cotação do dólar, euro ou outra moeda suportada.

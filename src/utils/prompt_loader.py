@@ -17,6 +17,11 @@ def load_prompt(filename: str) -> str:
     prompts_dir = Path(__file__).resolve().parent.parent / "agents" / "prompts"
     prompt_path = prompts_dir / filename
 
+    if not prompt_path.exists() and len(Path(filename).parts) == 1:
+        matches = list(prompts_dir.rglob(filename))
+        if len(matches) == 1:
+            prompt_path = matches[0]
+
     if not prompt_path.exists():
         raise FileNotFoundError(f"Arquivo de prompt não encontrado: {prompt_path}")
 
