@@ -16,7 +16,7 @@ class ClassifyIntentSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("classify_intent_tool_description.txt"),
+    description=load_prompt("tools/classify_intent_tool_description.txt"),
     args_schema=ClassifyIntentSchema,
 )
 def classify_intent(user_message: str) -> dict:

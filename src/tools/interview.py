@@ -22,7 +22,7 @@ class SubmitCreditInterviewSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("submit_credit_interview_tool_description.txt"),
+    description=load_prompt("tools/submit_credit_interview_tool_description.txt"),
     args_schema=SubmitCreditInterviewSchema,
 )
 def submit_credit_interview(
@@ -53,7 +53,7 @@ def submit_credit_interview(
     return result
 
 
-@tool(description=load_prompt("redirect_to_credit_tool_description.txt"))
+@tool(description=load_prompt("tools/redirect_to_credit_tool_description.txt"))
 def redirect_to_credit() -> dict:
     logger.info("redirect_to_credit chamada")
     result = invoke_mcp_tool("redirect_to_credit", {})

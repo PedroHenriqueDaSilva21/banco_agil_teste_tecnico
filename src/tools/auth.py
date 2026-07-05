@@ -19,7 +19,7 @@ class AuthenticateCustomerSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("auth_tool_description.txt"),
+    description=load_prompt("tools/auth_tool_description.txt"),
     args_schema=AuthenticateCustomerSchema,
 )
 def authenticate_customer(cpf: str, birth_date: str) -> dict:

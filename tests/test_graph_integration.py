@@ -83,6 +83,43 @@ def test_supervisor_defaults_to_triage(
     mock_triage.invoke.assert_called_once()
 
 
+@patch("src.agents.supervisor.create_triage_agent")
+@patch("src.agents.supervisor.create_credit_agent")
+@patch("src.agents.supervisor.create_interview_agent")
+@patch("src.agents.supervisor.create_exchange_agent")
+def test_supervisor_cascades_from_triage_to_credit(
+    mock_exchange_factory,
+    mock_interview_factory,
+    mock_credit_factory,
+    mock_triage_factory,
+):
+    from src.agents.state import initial_agent_state
+    from src.agents.supervisor import create_supervisor
+
+    mock_triage = MagicMock()
+    mock_triage.invoke.return_value = {
+        "messages": [make_text_response("Vou seguir com o atendimento de crédito.")],
+        "target_agent": "credit",
+        "authenticated": True,
+    }
+    mock_triage_factory.return_value = mock_triage
+
+    mock_credit = MagicMock()
+    mock_credit.invoke.return_value = {
+        "messages": [make_text_response("Seu limite atual é R$ 2.500,00.")],
+        "target_agent": "credit",
+    }
+    mock_credit_factory.return_value = mock_credit
+
+    supervisor = create_supervisor()
+    state = initial_agent_state([HumanMessage(content="quero consultar meu limite")])
+
+    supervisor.invoke(state)
+
+    mock_triage.invoke.assert_called_once()
+    mock_credit.invoke.assert_called_once()
+
+
 @patch("src.tools.credit.invoke_mcp_tool")
 @patch("src.agents.credit.ChatBedrockConverse")
 def test_credit_agent_consults_limit_e2e(mock_bedrock, mock_mcp, authenticated_credit_state):

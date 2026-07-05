@@ -14,7 +14,7 @@ class GetCreditLimitSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("get_credit_limit_tool_description.txt"),
+    description=load_prompt("tools/get_credit_limit_tool_description.txt"),
     args_schema=GetCreditLimitSchema,
 )
 def get_credit_limit(cpf: str) -> dict:
@@ -30,7 +30,7 @@ class RequestCreditIncreaseSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("request_credit_increase_tool_description.txt"),
+    description=load_prompt("tools/request_credit_increase_tool_description.txt"),
     args_schema=RequestCreditIncreaseSchema,
 )
 def request_credit_increase(cpf: str, requested_limit: float) -> dict:
@@ -51,7 +51,7 @@ def request_credit_increase(cpf: str, requested_limit: float) -> dict:
     return result
 
 
-@tool(description=load_prompt("redirect_to_interview_tool_description.txt"))
+@tool(description=load_prompt("tools/redirect_to_interview_tool_description.txt"))
 def redirect_to_interview() -> dict:
     logger.info("redirect_to_interview chamada")
     result = invoke_mcp_tool("redirect_to_interview", {})

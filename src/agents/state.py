@@ -7,6 +7,8 @@ from typing_extensions import TypedDict
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
+    pending_user_input: Optional[str]
+    input_blocked: bool
     auth_attempts: int
     authenticated: bool
     customer_cpf: Optional[str]
@@ -25,6 +27,8 @@ class AgentState(TypedDict):
 def initial_agent_state(messages: list | None = None) -> AgentState:
     return {
         "messages": messages or [],
+        "pending_user_input": None,
+        "input_blocked": False,
         "auth_attempts": 0,
         "authenticated": False,
         "customer_cpf": None,

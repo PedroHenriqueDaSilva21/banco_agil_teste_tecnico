@@ -20,7 +20,7 @@ class GetCurrencyQuoteSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("get_currency_quote_tool_description.txt"),
+    description=load_prompt("tools/get_currency_quote_tool_description.txt"),
     args_schema=GetCurrencyQuoteSchema,
 )
 def get_currency_quote(currency: str = "USD") -> dict:

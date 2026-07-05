@@ -17,7 +17,7 @@ class EndConversationSchema(BaseModel):
 
 
 @tool(
-    description=load_prompt("end_conversation_tool_description.txt"),
+    description=load_prompt("tools/end_conversation_tool_description.txt"),
     args_schema=EndConversationSchema,
 )
 def end_conversation(reason: str = "") -> dict:

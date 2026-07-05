@@ -19,6 +19,21 @@ def create_supervisor():
     interview = create_interview_agent()
     exchange = create_exchange_agent()
 
+    agents = {
+        "triage": triage,
+        "credit": credit,
+        "interview": interview,
+        "exchange": exchange,
+    }
+
+    def _invoke_agent(agent_name: str, state: AgentState, config: RunnableConfig) -> dict:
+        logger.info(
+            "Supervisor: executando agente %s.",
+            agent_name,
+            extra={"thread_id": (config or {}).get("configurable", {}).get("thread_id", "-")},
+        )
+        return agents[agent_name].invoke(state, config)
+
     def supervisor_node(state: AgentState, config: RunnableConfig) -> dict:
         tid = (config or {}).get("configurable", {}).get("thread_id", "-")
 
@@ -26,19 +41,43 @@ def create_supervisor():
             logger.info("Supervisor: atendimento encerrado.", extra={"thread_id": tid})
             return {}
 
-        target = state.get("target_agent")
-        if target == "credit":
-            logger.info("Supervisor: roteando para agente de crédito.", extra={"thread_id": tid})
-            return credit.invoke(state, config)
-        if target == "interview":
-            logger.info("Supervisor: roteando para entrevista de crédito.", extra={"thread_id": tid})
-            return interview.invoke(state, config)
-        if target == "exchange":
-            logger.info("Supervisor: roteando para agente de câmbio.", extra={"thread_id": tid})
-            return exchange.invoke(state, config)
+        current_state = state
+        current_target = state.get("target_agent") or "triage"
+        last_result: dict = {}
+        max_hops = 4
 
-        logger.info("Supervisor: delegando para agente de triagem.", extra={"thread_id": tid})
-        return triage.invoke(state, config)
+        for hop in range(max_hops):
+            if current_target not in agents:
+                logger.info(
+                    "Supervisor: agente inválido '%s', encerrando cascata.",
+                    current_target,
+                    extra={"thread_id": tid},
+                )
+                break
+
+            if hop == 0 and current_target == "triage":
+                logger.info("Supervisor: delegando para agente de triagem.", extra={"thread_id": tid})
+
+            result = _invoke_agent(current_target, current_state, config)
+            last_result = result
+
+            if result.get("conversation_ended"):
+                break
+
+            next_target = result.get("target_agent")
+            if not next_target or next_target == current_target:
+                break
+
+            logger.info(
+                "Supervisor: redirecionamento implícito %s -> %s.",
+                current_target,
+                next_target,
+                extra={"thread_id": tid},
+            )
+            current_state = result
+            current_target = next_target
+
+        return last_result
 
     graph = StateGraph(AgentState)
     graph.add_node("supervisor", supervisor_node)

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 MAX_AUTH_ATTEMPTS = 3
 _tools = [authenticate_customer, classify_intent, end_conversation]
-_TRIAGE_SYSTEM_PROMPT = load_prompt("triage.md")
+_TRIAGE_SYSTEM_PROMPT = load_prompt("agents/triage.md")
 _BLOCKED_MESSAGE = (
     "Não foi possível processar sua mensagem. "
     "Por favor, utilize apenas texto simples para interagir com o atendimento."
@@ -106,18 +106,21 @@ def create_triage_agent():
         if state.get("conversation_ended"):
             return {}
 
-        last_message = state["messages"][-1]
-        clean = sanitize_input(last_message.content)
+        raw_input = state.get("pending_user_input")
+
+        if raw_input is None:
+            return {}
+
+        clean = sanitize_input(raw_input)
         if clean is None:
             logger.warning("Entrada bloqueada pelo sanitizador — mensagem descartada.")
-            return {"messages": [AIMessage(content=_BLOCKED_MESSAGE)]}
-        return {"messages": [HumanMessage(content=clean)]}
+            return {"messages": [AIMessage(content=_BLOCKED_MESSAGE)], "pending_user_input": None, "input_blocked": True}
+        return {"messages": [HumanMessage(content=clean)], "pending_user_input": None, "input_blocked": False}
 
     def after_sanitize(state: AgentState) -> str:
         if state.get("conversation_ended"):
             return END
-        last_message = state["messages"][-1]
-        return END if isinstance(last_message, AIMessage) else "agent"
+        return END if state.get("input_blocked") else "agent"
 
     def call_llm(state: AgentState, config: RunnableConfig) -> dict:
         tid = (config or {}).get("configurable", {}).get("thread_id", "-")
