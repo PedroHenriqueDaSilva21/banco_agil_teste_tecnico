@@ -1,0 +1,3 @@
+from .credit_request_repository import CreditRequestRepository
+from .customer_repository import CustomerRepository
+from .score_limit_repository import ScoreLimitRepository

@@ -1,0 +1,1 @@
+Classifica a intenção do cliente autenticado e define o agente especializado adequado. Deve ser chamada após autenticação bem-sucedida, quando o cliente informar qual serviço deseja (crédito, entrevista de crédito, câmbio ou opção numerada 1, 2 ou 3).

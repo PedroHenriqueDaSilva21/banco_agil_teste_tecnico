@@ -1,0 +1,12 @@
+boto3
+langchain
+langchain-aws
+langgraph
+mcp
+pandas
+pydantic
+pydantic-settings
+python-dotenv
+requests
+streamlit
+pytest

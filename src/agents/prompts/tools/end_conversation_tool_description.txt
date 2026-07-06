@@ -1,0 +1,1 @@
+Encerra o atendimento imediatamente. Deve ser chamada quando o cliente solicitar o fim da conversa, ou quando o atendimento for finalizado após falhas de autenticação.
