@@ -1,0 +1,1 @@
+Registra a resposta do cliente para um campo da entrevista de crédito. Chame após o cliente responder cada pergunta, informando o campo atual e a resposta dele. Nunca invente valores — use somente o que o cliente informou na última mensagem.

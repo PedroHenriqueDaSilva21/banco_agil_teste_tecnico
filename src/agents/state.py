@@ -22,6 +22,12 @@ class AgentState(TypedDict):
     interview_offered: bool
     returned_from_interview: bool
     quote_delivered: bool
+    auth_menu_delivered: bool
+    interview_started: bool
+    interview_opening_delivered: bool
+    interview_collected: dict
+    interview_submitted: bool
+    interview_await_user: bool
 
 
 def initial_agent_state(messages: list | None = None) -> AgentState:
@@ -42,6 +48,12 @@ def initial_agent_state(messages: list | None = None) -> AgentState:
         "interview_offered": False,
         "returned_from_interview": False,
         "quote_delivered": False,
+        "auth_menu_delivered": False,
+        "interview_started": False,
+        "interview_opening_delivered": False,
+        "interview_collected": {},
+        "interview_submitted": False,
+        "interview_await_user": False,
     }
 
 

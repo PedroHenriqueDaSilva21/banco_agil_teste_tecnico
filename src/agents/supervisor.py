@@ -74,6 +74,18 @@ def create_supervisor():
                 next_target,
                 extra={"thread_id": tid},
             )
+            # Ao entrar no agente de entrevista vindo de outro agente,
+            # garante que o estado da entrevista está limpo para evitar
+            # que dados de sessões anteriores contaminem a nova entrevista.
+            if next_target == "interview" and current_target != "interview":
+                logger.info(
+                    "Supervisor: resetando estado da entrevista antes de iniciar.",
+                    extra={"thread_id": tid},
+                )
+                result["interview_opening_delivered"] = False
+                result["interview_collected"] = {}
+                result["interview_submitted"] = False
+                result["interview_await_user"] = False
             current_state = result
             current_target = next_target
 

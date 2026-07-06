@@ -6,6 +6,7 @@ from typing import Optional
 class IntentTag(str, Enum):
     CREDIT_LIMIT = "CREDIT_LIMIT"
     CREDIT_INCREASE = "CREDIT_INCREASE"
+    CREDIT_INTERVIEW = "CREDIT_INTERVIEW"
     EXCHANGE = "EXCHANGE"
     UNKNOWN = "UNKNOWN"
 
@@ -13,9 +14,27 @@ class IntentTag(str, Enum):
 AGENT_BY_INTENT: dict[IntentTag, Optional[str]] = {
     IntentTag.CREDIT_LIMIT: "credit",
     IntentTag.CREDIT_INCREASE: "credit",
+    IntentTag.CREDIT_INTERVIEW: "interview",
     IntentTag.EXCHANGE: "exchange",
     IntentTag.UNKNOWN: None,
 }
+
+
+_MENU_OPTION_PATTERNS: list[tuple[str, IntentTag]] = [
+    (r"^\s*1\s*$", IntentTag.CREDIT_LIMIT),
+    (r"^\s*2\s*$", IntentTag.CREDIT_INTERVIEW),
+    (r"^\s*3\s*$", IntentTag.EXCHANGE),
+    (r"\bop[cç][aã]o\s*1\b", IntentTag.CREDIT_LIMIT),
+    (r"\bop[cç][aã]o\s*2\b", IntentTag.CREDIT_INTERVIEW),
+    (r"\bop[cç][aã]o\s*3\b", IntentTag.EXCHANGE),
+]
+
+_CREDIT_INTERVIEW_PATTERNS = [
+    r"\bentrevista\b",
+    r"\breavali(ar|ação)\b.*\bscore\b",
+    r"\batualizar\b.*\bscore\b",
+    r"\bscore\b.*\b(cr[eé]dito|financeir[oa])\b",
+]
 
 
 _CREDIT_LIMIT_PATTERNS = [
@@ -51,8 +70,18 @@ class RoutingService:
         if not text:
             return self._result(IntentTag.UNKNOWN, "Mensagem vazia.")
 
+        for pattern, intent in _MENU_OPTION_PATTERNS:
+            if re.search(pattern, text):
+                return self._result(intent, f"Opção de menu identificada: {intent.value}.")
+
         if self._matches_any(text, _EXCHANGE_PATTERNS):
             return self._result(IntentTag.EXCHANGE, "Intenção de consulta de câmbio identificada.")
+
+        if self._matches_any(text, _CREDIT_INTERVIEW_PATTERNS):
+            return self._result(
+                IntentTag.CREDIT_INTERVIEW,
+                "Intenção de entrevista de crédito identificada.",
+            )
 
         if self._matches_any(text, _CREDIT_INCREASE_PATTERNS):
             return self._result(IntentTag.CREDIT_INCREASE, "Intenção de aumento de limite identificada.")

@@ -182,44 +182,65 @@ def test_credit_agent_rejected_increase_sets_interview_flag(mock_bedrock, mock_m
     assert result["interview_offered"] is True
 
 
-@patch("src.tools.interview.invoke_mcp_tool")
+@patch("src.agents.interview.submit_collected_interview")
 @patch("src.agents.interview.ChatBedrockConverse")
-def test_interview_agent_updates_score_and_redirects(mock_bedrock, mock_mcp, authenticated_interview_state):
+def test_interview_agent_records_answer_and_asks_next(
+    mock_bedrock,
+    mock_submit,
+    authenticated_interview_state,
+):
     from src.agents.interview import create_interview_agent
 
     mock_llm = MagicMock()
     mock_bedrock.return_value = mock_llm
     mock_llm.bind_tools.return_value = mock_llm
-    mock_llm.invoke.side_effect = [
-        make_tool_call_response(
-            "submit_credit_interview",
-            {
-                "cpf": "12345678901",
-                "monthly_income": 8000.0,
-                "job_type": "formal",
-                "monthly_expenses": 1500.0,
-                "dependents": 0,
-                "has_debts": False,
-            },
-            tool_call_id="call_1",
-        ),
-        make_tool_call_response("redirect_to_credit", {}, tool_call_id="call_2"),
-        make_text_response("Score atualizado! Vamos reanalisar seu crédito."),
-    ]
+    mock_llm.invoke.return_value = make_tool_call_response(
+        "record_interview_answer",
+        {"field": "monthly_income", "value": "8000"},
+    )
 
-    mock_mcp.side_effect = [
-        {
-            "success": True,
-            "previous_score": 250.0,
-            "new_score": 555.0,
-            "message": "Entrevista registrada.",
-        },
-        {
-            "redirected": True,
-            "target_agent": "credit",
-            "message": "Redirecionado.",
-        },
-    ]
+    agent = create_interview_agent()
+    authenticated_interview_state["pending_user_input"] = "8000"
+    result = agent.invoke(authenticated_interview_state)
+
+    assert result["interview_collected"]["monthly_income"] == 8000.0
+    assert result["interview_submitted"] is False
+    assert result["interview_await_user"] is True
+    mock_submit.assert_not_called()
+    mock_llm.invoke.assert_called_once()
+
+
+@patch("src.agents.interview.submit_collected_interview")
+@patch("src.agents.interview.ChatBedrockConverse")
+def test_interview_agent_completes_interview_and_redirects(
+    mock_bedrock,
+    mock_submit,
+    authenticated_interview_state,
+):
+    from src.agents.interview import create_interview_agent
+
+    mock_llm = MagicMock()
+    mock_bedrock.return_value = mock_llm
+    mock_llm.bind_tools.return_value = mock_llm
+    mock_llm.invoke.return_value = make_tool_call_response(
+        "record_interview_answer",
+        {"field": "has_debts", "value": "não"},
+    )
+
+    mock_submit.return_value = {
+        "success": True,
+        "previous_score": 250.0,
+        "new_score": 555.0,
+        "message": "Entrevista registrada.",
+    }
+
+    authenticated_interview_state["interview_collected"] = {
+        "monthly_income": 8000.0,
+        "job_type": "formal",
+        "monthly_expenses": 1500.0,
+        "dependents": 0,
+    }
+    authenticated_interview_state["pending_user_input"] = "não"
 
     agent = create_interview_agent()
     result = agent.invoke(authenticated_interview_state)
@@ -227,8 +248,8 @@ def test_interview_agent_updates_score_and_redirects(mock_bedrock, mock_mcp, aut
     assert result["customer_score"] == 555.0
     assert result["target_agent"] == "credit"
     assert result["returned_from_interview"] is True
-    assert result["interview_offered"] is False
-    assert mock_mcp.call_count == 2
+    assert result["interview_submitted"] is True
+    mock_submit.assert_called_once()
 
 
 @patch("src.tools.exchange.invoke_mcp_tool")

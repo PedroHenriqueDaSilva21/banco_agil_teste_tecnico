@@ -38,7 +38,7 @@ def test_auth_lockout_after_three_failures():
 
 
 def test_auth_success_sets_customer_fields():
-    state = {"auth_attempts": 0, "authenticated": False, "conversation_ended": False}
+    state = {"auth_attempts": 0, "authenticated": False, "conversation_ended": False, "auth_menu_delivered": False}
     tool_messages = [
         ToolMessage(
             content=(
@@ -58,6 +58,11 @@ def test_auth_success_sets_customer_fields():
     assert result["customer_cpf"] == "12345678901"
     assert result["customer_score"] == 629.85
     assert result["customer_limit"] == 2500.0
+    assert result["auth_menu_delivered"] is True
+    assert len(result["extra_messages"]) == 1
+    assert "1. **Crédito**" in result["extra_messages"][0].content
+    assert "2. **Entrevista de crédito**" in result["extra_messages"][0].content
+    assert "3. **Câmbio**" in result["extra_messages"][0].content
 
 
 def test_classify_intent_sets_target_agent():

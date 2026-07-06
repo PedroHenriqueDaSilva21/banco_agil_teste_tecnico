@@ -56,7 +56,7 @@ def authenticated_exchange_state():
 
 @pytest.fixture
 def authenticated_interview_state():
-    state = initial_agent_state([HumanMessage(content="sim, quero fazer a entrevista")])
+    state = initial_agent_state([])
     state.update(
         {
             "authenticated": True,
@@ -65,6 +65,10 @@ def authenticated_interview_state():
             "customer_score": 250.0,
             "customer_limit": 2500.0,
             "target_agent": "interview",
+            "intent": "CREDIT_INTERVIEW",
+            "interview_started": True,
+            "interview_opening_delivered": True,
+            "interview_collected": {},
             "last_request_status": "rejeitado",
             "interview_offered": True,
         }

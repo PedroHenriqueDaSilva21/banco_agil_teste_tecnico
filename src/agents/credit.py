@@ -34,6 +34,11 @@ def _build_system_prompt(state: AgentState) -> str:
     ]
     if state.get("last_request_status") == "rejeitado":
         context_lines.append("- Última solicitação de aumento: **rejeitada** — ofereça entrevista de crédito.")
+    if state.get("intent") == "CREDIT_INTERVIEW":
+        context_lines.append(
+            "- Intenção: **entrevista de crédito** — chame `redirect_to_interview` imediatamente, "
+            "sem consultar limite."
+        )
     if state.get("returned_from_interview"):
         context_lines.append(
             "- Cliente retornou da entrevista de crédito com score atualizado — "

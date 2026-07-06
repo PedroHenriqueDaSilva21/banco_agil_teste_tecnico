@@ -1,4 +1,5 @@
 import logging
+import re
 
 from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -21,6 +22,33 @@ _BLOCKED_MESSAGE = (
     "Por favor, utilize apenas texto simples para interagir com o atendimento."
 )
 
+_CURRENCY_PATTERNS = [
+    r"\bd[oó]lar\b",
+    r"\busd\b",
+    r"\beuro\b",
+    r"\beur\b",
+    r"\blibr\w*\b",
+    r"\bgbp\b",
+    r"\bpeso\b",
+    r"\bars\b",
+    r"\biene\b",
+    r"\bjpy\b",
+    r"\bfranco\b",
+    r"\bchf\b",
+    r"\bcad\b",
+    r"\bcanadense\b",
+]
+
+
+def _conversation_mentions_currency(messages: list) -> bool:
+    for msg in messages:
+        if not isinstance(msg, HumanMessage):
+            continue
+        text = msg.content.lower() if isinstance(msg.content, str) else ""
+        if any(re.search(pattern, text) for pattern in _CURRENCY_PATTERNS):
+            return True
+    return False
+
 
 def _build_system_prompt(state: AgentState) -> str:
     context_lines = [
@@ -29,6 +57,14 @@ def _build_system_prompt(state: AgentState) -> str:
         f"- Nome: {state.get('customer_name') or 'N/A'}",
         f"- Intenção identificada: {state.get('intent') or 'N/A'}",
     ]
+    if not state.get("quote_delivered") and not _conversation_mentions_currency(
+        state.get("messages", [])
+    ):
+        context_lines.append(
+            "- **Atenção**: o cliente ainda não informou a moeda desejada. "
+            "Pergunte qual moeda deseja consultar e não chame `get_currency_quote` "
+            "nem `end_conversation` até receber essa informação."
+        )
     return _EXCHANGE_SYSTEM_PROMPT + "\n".join(context_lines)
 
 
@@ -39,9 +75,6 @@ def _route_after_agent(state: AgentState) -> str:
     last_message = state["messages"][-1]
     if getattr(last_message, "tool_calls", None):
         return "tools"
-
-    if state.get("quote_delivered"):
-        return "finalize"
 
     return END
 
@@ -134,27 +167,15 @@ def create_exchange_agent():
         side_effects = _apply_tool_side_effects(state, tool_messages)
         return {"messages": tool_result["messages"], **side_effects}
 
-    def finalize_exchange(state: AgentState) -> dict:
-        if state.get("conversation_ended"):
-            return {}
-        logger.info("Cotação entregue — encerrando atendimento de câmbio.")
-        return {"conversation_ended": True}
-
     graph = StateGraph(AgentState)
     graph.add_node("sanitize", sanitize_node)
     graph.add_node("agent", call_llm)
     graph.add_node("tools", process_tools)
-    graph.add_node("finalize", finalize_exchange)
 
     graph.add_edge(START, "sanitize")
     graph.add_conditional_edges("sanitize", after_sanitize, {"agent": "agent", END: END})
-    graph.add_conditional_edges(
-        "agent",
-        _route_after_agent,
-        {"tools": "tools", "finalize": "finalize", END: END},
-    )
+    graph.add_conditional_edges("agent", _route_after_agent, {"tools": "tools", END: END})
     graph.add_edge("tools", "agent")
-    graph.add_edge("finalize", END)
 
     return graph.compile()
 

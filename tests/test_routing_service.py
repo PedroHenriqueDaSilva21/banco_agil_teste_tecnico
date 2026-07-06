@@ -15,9 +15,14 @@ def routing_service():
         ("Quero consultar meu limite", IntentTag.CREDIT_LIMIT, "credit"),
         ("Preciso aumentar meu limite de crédito", IntentTag.CREDIT_INCREASE, "credit"),
         ("Quero solicitar aumento", IntentTag.CREDIT_INCREASE, "credit"),
+        ("Quero fazer a entrevista de crédito", IntentTag.CREDIT_INTERVIEW, "interview"),
+        ("Preciso reavaliar meu score", IntentTag.CREDIT_INTERVIEW, "interview"),
+        ("2", IntentTag.CREDIT_INTERVIEW, "interview"),
         ("Qual a cotação do dólar?", IntentTag.EXCHANGE, "exchange"),
         ("Preciso de câmbio", IntentTag.EXCHANGE, "exchange"),
         ("Quanto está o euro hoje?", IntentTag.EXCHANGE, "exchange"),
+        ("3", IntentTag.EXCHANGE, "exchange"),
+        ("1", IntentTag.CREDIT_LIMIT, "credit"),
     ],
 )
 def test_classify_known_intents(routing_service, message, expected_intent, expected_agent):

@@ -1,18 +1,29 @@
 # Banco Ágil IA
 
 ## Índice
-- [Objetivo](#objetivo)
+- [Visão Geral do Projeto](#visão-geral-do-projeto)
 - [Stack](#stack)
-      - [Tecnologias Principais](#tecnologias-principais)
-      - [Dependências e Versões](#dependências-e-versões)
-- [Decisão arquitetural](#decisão-arquitetural)
-      - [Fluxo base da arquitetura](#fluxo-base-da-arquitetura)
+  - [Tecnologias Principais](#tecnologias-principais)
+  - [Escolha da Stack](#escolha-da-stack)
+  - [Dependências e Versões](#dependências-e-versões)
+- [Arquitetura do Sistema](#arquitetura-do-sistema)
+  - [Fluxo base da arquitetura](#fluxo-base-da-arquitetura)
+  - [Pré-requisitos](#pré-requisitos)
+  - [Configuração](#configuração)
+  - [Executar a interface](#executar-a-interface)
+  - [Dados de teste](#dados-de-teste)
+  - [Exemplo de fluxo](#exemplo-de-fluxo)
+- [Camadas da arquitetura](#camadas-da-arquitetura)
 - [Funcionalidades implementadas](#funcionalidades-implementadas)
+  - [Estrutura do diretório](#estrutura-do-diretório)
+  - [Responsabilidade por camada e arquivo](#responsabilidade-por-camada-e-arquivo)
+- [Testes](#testes)
+- [CI/CD](#cicd)
 - [Desafios enfrentados e como foram resolvidos](#desafios-enfrentados-e-como-foram-resolvidos)
-- [Tutorial de execução e testes](#tutorial-de-execução-e-testes)
+- [Demonstração do Projeto](#demonstração-do-projeto)
 
-### Objetivo
-Criar um agente de de IA para operações bancárias, ele deverá operar com operações de triagem, crédito, entrevistá para atualizar score de crédito, e um agente de câmbio.
+### Visão Geral do Projeto
+O Banco Ágil IA é um sistema inteligente de atendimento ao cliente bancário desenvolvido com agentes de inteligência artificial autônomos. Ele gerencia fluxos integrados de triagem de clientes, consulta e aumento de limite de crédito, realização de entrevista financeira para atualização do score de crédito e cotação de moedas estrangeiras (câmbio) em tempo real.
 
 ## Stack
 
@@ -27,15 +38,13 @@ Criar um agente de de IA para operações bancárias, ele deverá operar com ope
 
 #### Escolha da Stack
 
-A Stack foi escolhida pelos seguintes critérios:
+A stack foi escolhida com base nos seguintes critérios:
 
-Python: além de ser a linguagem pedida no requisito da vaga, há muitas ferramentas para tratativa de dados como Pandas. Facilitando a operação pedida para a manipulação de CSV, e as libs do Langchain, RAG e busca semântica são as principais lançadas.
+* **Python**: Além de ser a linguagem exigida no desafio, possui um ecossistema consolidado para análise de dados com Pandas (facilitando a manipulação e persistência em arquivos CSV) e suporte nativo às bibliotecas do LangChain e LangGraph.
+* **AWS Bedrock**: Permite utilizar chaves de acesso do IAM já configuradas no ambiente, acelerando o desenvolvimento e evitando perda de tempo com a configuração inicial de novos provedores de nuvem.
+* **AWS Nova Pro**: Oferece uma excelente relação custo-benefício em comparação com outros modelos proprietários do mercado. Ele apresenta ótimos resultados na compreensão e estruturação de tarefas textuais complexas, desde que o fluxo da informação seja bem direcionado pelos nós do grafo.
 
-AWSBedrock: Eu possuo uma conta que tem créditos sobrando que expiram daqui 15 dias. E eu já tinha pronto um user do IAM com chaves de acesso para o Bedrock, então eu posso só pegar minhas credênciais e focar no projeto em si invés de configuração de um novo ambiente.
-
-Além disso, o modelo AWS Nova fornece uma solução muito boa em custo beneficio em comparação a modelos de mercado que tem aumentado seus preços (Claude, Gemini, etc.), e embora seja um modelo mais limitado, se o fluxo da informação transitar corretamente nos nós do grafo do langchain, ele consegue cumprir um papel muito bom para operações com texto.
-
-Mas nada impede ser utilizado um modelo superior neste mesmo projeto, pois o modelo é configurado como variável de ambiente.
+*(Nota: O projeto suporta a utilização de qualquer outro modelo compatível com o LangChain, bastando alterar as variáveis correspondentes no arquivo `.env`.)*
 
 ### Dependências e Versões
 
@@ -73,7 +82,7 @@ Usuário
 
 O sistema vai seguir a estrutura MCP para a comunicação dos agentes de IA com as operações a serem realizadas e gravadas nos arquivos CSV. Esse padrão vai ser seguido para desacoplar a lógica dos agentes de IA com as operações de fontes de dados, fazendo com que haja um fluxo mais previsível de repasse da informação entre o services para o agente, facilitando a manutenção e o rastreamento dos logs.
 
-dentro do diretório src teremos os seguintes estrutura de pastas:
+Dentro do diretório `src`, a estrutura de pastas é organizada da seguinte forma:
 
 ```
 src/
@@ -101,9 +110,8 @@ src/
       └── settings.py
 ```
 
-agents: começará com a *triagem*, onde, após a autenticação, ele vai classificar a intenção do usuário por meio de tags pré-definidas.
-
-tools: conforme a recomendação da estrutura MCP, iremos estabelecer as ferramentas que cada agent poderá ter acesso, limitando a atuação de cada uma ao que for necessário para chamar os services específicos e repassar a resposta para o agent geral, evitando alucinação e garantindo uma busca melhor da informação que, de fato, o cliente está buscando.
+* **agents**: Contém a lógica de comportamento e fluxo de conversa de cada agente (triagem, crédito, entrevista e câmbio). O agente de triagem atua como porta de entrada e, após a autenticação, classifica as intenções do usuário de forma inteligente.
+* **tools**: Concentra as ferramentas que os agentes de IA podem acionar (integrações externas, leituras e escritas nos bancos de dados CSV, etc.), assegurando um fluxo previsível e reduzindo chances de alucinações.
 
 config: guardará as configurações centrais do projeto, como caminhos dos arquivos CSV, constantes de domínio, parâmetros de execução e eventuais chaves ou variáveis de ambiente necessárias para o funcionamento da aplicação. A ideia é centralizar tudo que for configuração para evitar valores espalhados pelo código e facilitar ajustes futuros.
 
@@ -388,18 +396,38 @@ Pipeline GitHub Actions em `.github/workflows/ci.yml` executa `pytest tests/ -v`
 
 ---
 
-## Desafions enfrentados e como foram resolvidos
+## Desafios enfrentados e como foram resolvidos
 
-### Servidor MCP
+### Integração com Servidor MCP (Model Context Protocol)
 
-Embora não seja um requisito do projeto, a decisão de fazer um servidor MCP veio por conta em que um possível cenário real, agentes de outras plataformas poderiam se vincular para a consulta de dados, hoje temos por exemplo agentes de IA integrados ao Whatsapp que acompanham e registram custos, isto abriria uma possibilidade de conseguir abranger uma funcionalidade para clientes que utilizam isso em sue dia a dia. Porém embora eu já tenho participado de 4 projetos grandes de IA, o MCP é algo razoalvelmente novo, eu conhecia bem o conceito mas aplica-lo junto ao Client foi um exercício mental um pouco mais complexo
+Embora a implementação de um servidor MCP não fosse um requisito mandatório do projeto, a decisão de adotá-lo partiu do desejo de simular um cenário real de produção. Em aplicações reais, múltiplos canais (como WhatsApp, Slack ou sistemas de chatbot) podem precisar acionar as mesmas regras de negócio e consultas de dados. Como o protocolo MCP é recente, acoplá-lo com o cliente LangChain e o fluxo de ferramentas exigiu um estudo aprofundado sobre comunicação via subprocesso `stdio` e a correta declaração de schemas.
 
-### Transição dos Agentes de IA
+### Transição Silenciosa e Estado de Autenticação
 
-Eu estava com um problema que mesmo após a autenticação passada pelo nó do agente Supervisor, os subagentes exigiam uma autenticação própria, e se negavam a passar informações, mesmo tendo todo o contexto da conversa para trabalhar emcima. Em um projeto que trabalhei com agentes de cobrança e de vendas anteriormente, eram integradas a um fluxo de chatbot de uma plataforma, então problemas com autenticação foi um erro inesperado já que o usuário já vinha autenticado. Mas para isso resolvi somente criando um contexto de sessão com informação se ele está autenticado, e qual o agente atual de trabalho da sessão, além do roteamento da dessão em routing.py, aonde é passado um prompt de classificação de intenção.
-
-
-
+Durante o desenvolvimento inicial, ocorreu um problema em que os subagentes (como o de Crédito) exigiam que o cliente passasse por uma nova autenticação ou falhavam ao tentar consultar o contexto. Para solucionar esse comportamento indesejado, a máquina de estados do LangGraph foi projetada para compartilhar dados de sessão persistentes na memória do thread (via `AgentState`). Desse modo, informações como nome, CPF e score atual do cliente fluem de forma segura entre os agentes, permitindo uma transição invisível para o usuário final.
 
 ---
 
+## Demonstração do Projeto
+
+Abaixo estão algumas capturas de tela demonstrando o funcionamento da interface Streamlit do **Banco Ágil**:
+
+### 1. Autenticação do Cliente
+O fluxo se inicia com o assistente Lican solicitando os dados cadastrais (CPF e Data de Nascimento) para liberação do acesso.
+![Autenticação](assets/auth.PNG)
+
+### 2. Consulta de Saldo e Limite de Crédito
+Após autenticado, o cliente pode consultar o seu limite atual de forma instantânea.
+![Consulta de Saldo e Limite](assets/consulta_saldo.PNG)
+
+### 3. Solicitação de Aumento de Crédito
+O cliente pode pedir um aumento. Caso aprovado, o novo limite é atualizado no banco de dados.
+![Autenticação e Aumento de Crédito](assets/auth_e_aumento_de_crédito.PNG)
+
+### 4. Entrevista de Crédito
+Se a solicitação for rejeitada pelo score, o cliente é redirecionado à entrevista financeira, que atualizará seu score dinamicamente.
+![Entrevista de Crédito](assets/entrevista_crédito.PNG)
+
+### 5. Cotação de Câmbio
+Consulta de moedas estrangeiras integrada em tempo real.
+![Câmbio](assets/cambio.png)

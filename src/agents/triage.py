@@ -25,6 +25,13 @@ _AUTH_LOCKOUT_MESSAGE = (
     "Por segurança, precisamos encerrar este atendimento. "
     "Por favor, entre em contato novamente ou visite uma agência do Banco Ágil."
 )
+_AUTH_SUCCESS_MENU = (
+    "Olá, {first_name}! Autenticação realizada com sucesso.\n\n"
+    "Como posso ajudar? Escolha uma opção:\n"
+    "1. **Crédito** — consultar limite ou solicitar aumento de limite\n"
+    "2. **Entrevista de crédito** — reavaliar seu score financeiro\n"
+    "3. **Câmbio** — consultar cotação de moedas (dólar, euro, etc.)"
+)
 
 
 def _route_after_agent(state: AgentState) -> str:
@@ -44,7 +51,9 @@ def _apply_tool_side_effects(
 ) -> dict:
     auth_attempts = state.get("auth_attempts", 0)
     authenticated = state.get("authenticated", False)
+    was_authenticated = authenticated
     conversation_ended = state.get("conversation_ended", False)
+    auth_menu_delivered = state.get("auth_menu_delivered", False)
     customer_cpf = state.get("customer_cpf")
     customer_name = state.get("customer_name")
     customer_score = state.get("customer_score")
@@ -63,6 +72,12 @@ def _apply_tool_side_effects(
                 customer_name = payload.get("customer_name")
                 customer_score = payload.get("customer_score")
                 customer_limit = payload.get("customer_limit")
+                if not was_authenticated and not auth_menu_delivered:
+                    first_name = (customer_name or "cliente").split()[0]
+                    extra_messages.append(
+                        AIMessage(content=_AUTH_SUCCESS_MENU.format(first_name=first_name))
+                    )
+                    auth_menu_delivered = True
             else:
                 auth_attempts += 1
                 if auth_attempts >= MAX_AUTH_ATTEMPTS:
@@ -88,6 +103,7 @@ def _apply_tool_side_effects(
         "target_agent": target_agent,
         "intent": intent,
         "conversation_ended": conversation_ended,
+        "auth_menu_delivered": auth_menu_delivered,
         "extra_messages": extra_messages,
     }
 
@@ -170,6 +186,8 @@ def create_triage_agent():
 
     def after_tools(state: AgentState) -> str:
         if state.get("conversation_ended") and state.get("auth_attempts", 0) >= MAX_AUTH_ATTEMPTS:
+            return END
+        if state.get("auth_menu_delivered") and not state.get("target_agent"):
             return END
         return "agent"
 
