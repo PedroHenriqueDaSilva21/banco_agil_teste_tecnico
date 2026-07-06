@@ -32,8 +32,7 @@ O Banco Ágil IA é um sistema inteligente de atendimento ao cliente bancário d
 | Camada | Tecnologia |
 | --- | --- |
 | Linguagem | Python 3.12.3 |
-| LLM / Infraestrutura | Amazon Bedrock e Docker |
-| Modelo de embeddings utilizado | Titan Embeddings v2 |
+| Infraestrutura de IA | Amazon Bedrock |
 | Modelo de raciocínio utilizado | AWS Nova Pro |
 
 #### Escolha da Stack
